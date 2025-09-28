@@ -19,6 +19,7 @@ settings_key_daily_alarms="daily_alarms"
 class Plugin:
 
     timer_task: any
+    alarm_checker_task: any
 
     def get_time_difference(self, target_timestamp: datetime):
         return target_timestamp - time.time()
@@ -153,6 +154,51 @@ class Plugin:
 
         return alarms
 
+    async def alarm_checker_loop(self):
+        """Background task that checks for daily alarm triggers every 30 seconds"""
+        while True:
+            try:
+                await asyncio.sleep(30)  # Check every 30 seconds
+                await self.check_daily_alarms()
+            except asyncio.CancelledError:
+                decky.logger.info("Daily alarm checker task cancelled")
+                break
+            except Exception as e:
+                decky.logger.error(f"Error in daily alarm checker: {e}")
+
+    async def check_daily_alarms(self):
+        """Check if any daily alarms should trigger now"""
+        from datetime import datetime, date
+
+        now = datetime.now()
+        current_hour = now.hour
+        current_minute = now.minute
+        today = date.today().isoformat()
+
+        alarms = await self.settings_getSetting(settings_key_daily_alarms, {})
+
+        for alarm_key, alarm_data in alarms.items():
+            if not alarm_data.get("enabled", True):
+                continue
+
+            # Check if this alarm should trigger now
+            if (alarm_data["hour"] == current_hour and
+                alarm_data["minute"] == current_minute and
+                alarm_data.get("last_triggered") != today):
+
+                # Trigger the alarm
+                slot = alarm_key.split("_")[1]  # Extract slot number from "alarm_1" etc
+                decky.logger.info(f"Triggering daily alarm {slot} at {current_hour:02d}:{current_minute:02d}")
+
+                # Update last triggered date
+                alarm_data["last_triggered"] = today
+                await self.settings_setSetting(settings_key_daily_alarms, alarms)
+                await self.settings_commit()
+
+                # Emit alarm event (reuse existing timer event)
+                subtle = await self.settings_getSetting(settings_key_subtle_mode, False)
+                await decky.emit("simple_timer_event", f"Daily Alarm {slot}", subtle)
+
     async def _main(self):
         self.loop = asyncio.get_event_loop()
         self.seconds_remaining = 0
@@ -173,10 +219,15 @@ class Plugin:
         await self.load_recents()
         await self.load_subtle_mode()
 
+        # Start daily alarm checker
+        self.alarm_checker_task = self.loop.create_task(self.alarm_checker_loop())
+
         decky.logger.info("Simple Timer has been initialised.")
 
     async def _unload(self):
         await self.cancel_timer()
+        if hasattr(self, 'alarm_checker_task') and self.alarm_checker_task is not None:
+            self.alarm_checker_task.cancel()
         decky.logger.info("Simple Timer has been unloaded.")
         pass
 
