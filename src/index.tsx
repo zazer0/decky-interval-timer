@@ -23,6 +23,27 @@ import { FaClock, FaMinus, FaPlus, FaVolumeDown } from "react-icons/fa";
 import { PropsWithChildren, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { SteamUtils } from "./utils/steam";
 
+// Time calculation utilities
+function getSecondsUntilTime(targetHour: number): number {
+  const now = new Date();
+  const target = new Date();
+  target.setHours(targetHour, 0, 0, 0);
+
+  // If the target time has already passed today, set it for tomorrow
+  if (target <= now) {
+    target.setDate(target.getDate() + 1);
+  }
+
+  // Calculate seconds until target time
+  return Math.floor((target.getTime() - now.getTime()) / 1000);
+}
+
+function formatTimeUntil(targetHour: number): string {
+  const hour12 = targetHour === 0 ? 12 : targetHour > 12 ? targetHour - 12 : targetHour;
+  const period = targetHour < 12 ? 'AM' : 'PM';
+  return `${hour12}:00 ${period}`;
+}
+
 // This function calls the python function "start_timer", which takes in no arguments and returns nothing.
 // It starts a (python) timer which eventually emits the event 'timer_event'
 const startTimer = callable<[seconds: number], void>("start_timer");
@@ -61,6 +82,111 @@ const MinutesButton = ({ children, type, ...props }: MinutesButtonProps) => {
     </Button>
   )
 }
+
+interface TimePickerModalProps {
+  currentHour: number;
+  currentMinute: number;
+  onSave: (hour: number, minute: number) => void;
+  closeModal: () => void;
+}
+
+const TimePickerModal = ({ currentHour, currentMinute, onSave, closeModal }: TimePickerModalProps) => {
+  const [hour, setHour] = useState(currentHour);
+  const [minute, setMinute] = useState(currentMinute);
+
+  const handleSave = () => {
+    // Validate hour and minute ranges
+    const validHour = Math.max(0, Math.min(23, hour));
+    const validMinute = Math.max(0, Math.min(59, minute));
+    onSave(validHour, validMinute);
+    closeModal();
+  };
+
+  return (
+    <ConfirmModal
+      strTitle="Set Daily Alarm"
+      strDescription="Set time for daily alarm (24-hour format)"
+      strOKButtonText="Save"
+      strCancelButtonText="Cancel"
+      onOK={handleSave}
+      onCancel={closeModal}
+    >
+      <div style={{ display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label style={{ fontSize: 14, color: '#ffffff' }}>Hour (0-23)</label>
+          <input
+            type="number"
+            min="0"
+            max="23"
+            value={hour}
+            onChange={(e) => setHour(parseInt(e.target.value) || 0)}
+            style={{
+              width: 80,
+              padding: 8,
+              fontSize: 16,
+              textAlign: 'center',
+              backgroundColor: '#2d3748',
+              color: '#ffffff',
+              border: '1px solid #4a5568',
+              borderRadius: 4
+            }}
+          />
+        </div>
+        <div style={{ fontSize: 20, color: '#ffffff' }}>:</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <label style={{ fontSize: 14, color: '#ffffff' }}>Minute (0-59)</label>
+          <input
+            type="number"
+            min="0"
+            max="59"
+            value={minute}
+            onChange={(e) => setMinute(parseInt(e.target.value) || 0)}
+            style={{
+              width: 80,
+              padding: 8,
+              fontSize: 16,
+              textAlign: 'center',
+              backgroundColor: '#2d3748',
+              color: '#ffffff',
+              border: '1px solid #4a5568',
+              borderRadius: 4
+            }}
+          />
+        </div>
+      </div>
+    </ConfirmModal>
+  );
+};
+
+interface AlarmButtonProps {
+  slot: number;
+  hour: number;
+  minute: number;
+  onClick: () => void;
+}
+
+const AlarmButton = ({ slot, hour, minute, onClick }: AlarmButtonProps) => {
+  const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+
+  return (
+    <Button
+      focusable
+      onClick={onClick}
+      style={{
+        fontSize: 14,
+        padding: '6px 12px',
+        borderRadius: 6,
+        backgroundColor: '#556677',
+        color: '#ffffff',
+        minWidth: '65px',
+        textAlign: 'center',
+        border: 0
+      }}
+    >
+      {timeStr}
+    </Button>
+  );
+};
 
 const directoryPath = import.meta.url.substring(0, import.meta.url.lastIndexOf('/') + 1);
 
