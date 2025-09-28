@@ -14,6 +14,7 @@ settings.read()
 settings_key_subtle_mode="subtle_mode"
 settings_key_recent_timers="recent_timers_seconds"
 settings_key_timer_end="timer_end"
+settings_key_daily_alarms="daily_alarms"
 
 class Plugin:
 
@@ -113,6 +114,44 @@ class Plugin:
 
     async def load_remaining_seconds(self):
         await decky.emit("simple_timer_seconds_updated", self.seconds_remaining)
+
+    async def set_daily_alarm(self, slot: int, hour: int, minute: int):
+        """Set a daily alarm for slot 1, 2, or 3"""
+        alarms = await self.settings_getSetting(settings_key_daily_alarms, {})
+        alarm_key = f"alarm_{slot}"
+
+        # Get current date for last_triggered tracking
+        from datetime import date
+        today = date.today().isoformat()
+
+        alarms[alarm_key] = {
+            "hour": hour,
+            "minute": minute,
+            "enabled": True,
+            "last_triggered": None
+        }
+
+        await self.settings_setSetting(settings_key_daily_alarms, alarms)
+        await self.settings_commit()
+        decky.logger.info(f"Set daily alarm {slot} to {hour:02d}:{minute:02d}")
+
+    async def get_daily_alarms(self):
+        """Get all daily alarm configurations"""
+        alarms = await self.settings_getSetting(settings_key_daily_alarms, {})
+
+        # Return default alarms if none set
+        defaults = {
+            "alarm_1": {"hour": 21, "minute": 0, "enabled": True},
+            "alarm_2": {"hour": 22, "minute": 0, "enabled": True},
+            "alarm_3": {"hour": 23, "minute": 0, "enabled": True}
+        }
+
+        # Merge with defaults for any missing alarms
+        for key, default in defaults.items():
+            if key not in alarms:
+                alarms[key] = default
+
+        return alarms
 
     async def _main(self):
         self.loop = asyncio.get_event_loop()
