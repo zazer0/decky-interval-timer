@@ -54,6 +54,8 @@ const saveSubtleMode = callable<[subtle: boolean], void>("set_subtle_mode");
 const loadRecents = callable<[void], void>("load_recents");
 const loadSecondsRemaining = callable<[void], void>("load_remaining_seconds");
 const loadSubtleMode = callable<[void], boolean>("load_subtle_mode");
+const setDailyAlarm = callable<[slot: number, hour: number, minute: number], void>("set_daily_alarm");
+const getDailyAlarms = callable<[], Record<string, {hour: number, minute: number, enabled: boolean}>>("get_daily_alarms");
 
 type MinutesButtonProps = PropsWithChildren<ButtonProps & { type: 'positive' | 'negative' }>;
 
@@ -197,6 +199,14 @@ function Content() {
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [recentTimerSeconds, setRecentTimerSeconds] = useState<number[] | null>();
   const [subtleMode, setSubtleMode] = useState<boolean>(false);
+  const [dailyAlarms, setDailyAlarms] = useState<Record<string, {hour: number, minute: number, enabled: boolean}>>({
+    alarm_1: {hour: 21, minute: 0, enabled: true},
+    alarm_2: {hour: 22, minute: 0, enabled: true},
+    alarm_3: {hour: 23, minute: 0, enabled: true}
+  });
+  const [timePickerOpen, setTimePickerOpen] = useState<{open: boolean, slot: number, hour: number, minute: number}>({
+    open: false, slot: 1, hour: 21, minute: 0
+  });
 
   useEffect(() => {
     const handleRefreshRecents = (recents: number[]) => {
@@ -218,6 +228,7 @@ function Content() {
     loadRecents();
     loadSecondsRemaining();
     loadSubtleMode();
+    loadDailyAlarms();
 
     return () => {
       removeEventListener("simple_timer_refresh_recents", handleRefreshRecents);
@@ -225,6 +236,37 @@ function Content() {
       removeEventListener("simple_timer_subtle", handleSubtleModeUpdate);
     }
   }, []);
+
+  const handleAlarmClick = (slot: number) => {
+    const alarmKey = `alarm_${slot}`;
+    const alarm = dailyAlarms[alarmKey];
+    setTimePickerOpen({
+      open: true,
+      slot,
+      hour: alarm.hour,
+      minute: alarm.minute
+    });
+  };
+
+  const handleAlarmSave = async (hour: number, minute: number) => {
+    await setDailyAlarm(timePickerOpen.slot, hour, minute);
+
+    // Update local state
+    const alarmKey = `alarm_${timePickerOpen.slot}`;
+    setDailyAlarms(prev => ({
+      ...prev,
+      [alarmKey]: { hour, minute, enabled: true }
+    }));
+  };
+
+  const loadDailyAlarms = async () => {
+    try {
+      const alarms = await getDailyAlarms();
+      setDailyAlarms(alarms);
+    } catch (error) {
+      console.error("Failed to load daily alarms:", error);
+    }
+  };
 
   useLayoutEffect(() => {
     containerRef?.current?.scrollTo(0, 0);
@@ -245,6 +287,22 @@ function Content() {
               <MinutesButton focusable type='positive' onClick={() => setTimerMinutes(prev => prev + 30)}>
                 <FaPlus size={8} /><span>30</span>
               </MinutesButton>
+            </Focusable>
+          </PanelSectionRow>
+        ) : null}
+
+        {secondsRemaining <= 0 ? (
+          <PanelSectionRow>
+            <Focusable flow-children="row" style={{ display: 'flex', justifyContent: 'center', gap: 8, paddingBottom: 8 }}>
+              {Object.entries(dailyAlarms).map(([key, alarm], idx) => (
+                <AlarmButton
+                  key={key}
+                  slot={idx + 1}
+                  hour={alarm.hour}
+                  minute={alarm.minute}
+                  onClick={() => handleAlarmClick(idx + 1)}
+                />
+              ))}
             </Focusable>
           </PanelSectionRow>
         ) : null}
@@ -309,6 +367,15 @@ function Content() {
           <ButtonItem disabled bottomSeparator="none" layout="below">decktools.xyz/donate <span style={{ color: 'pink' }}>&lt;3</span></ButtonItem>
         </PanelSectionRow>
       </PanelSection>
+
+      {timePickerOpen.open && (
+        <TimePickerModal
+          currentHour={timePickerOpen.hour}
+          currentMinute={timePickerOpen.minute}
+          onSave={handleAlarmSave}
+          closeModal={() => setTimePickerOpen({ ...timePickerOpen, open: false })}
+        />
+      )}
     </div>
   );
 };
