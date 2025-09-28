@@ -403,6 +403,8 @@ export default definePlugin(() => {
     }
   }
 
+  // Note: Daily alarms also use the simple_timer_event, so they are automatically
+  // handled by the existing handleTimerComplete function in the plugin definition
   addEventListener<[message: string, subtle: boolean]>("simple_timer_event", handleTimerComplete);
 
   return {
