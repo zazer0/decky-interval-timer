@@ -138,13 +138,14 @@ class Plugin:
 
     async def get_daily_alarms(self):
         """Get all daily alarm configurations"""
-        alarms = await self.settings_getSetting(settings_key_daily_alarms, {})
+        # INFO: comment setting retrieval since UI not clickable bug currently
+        #alarms = await self.settings_getSetting(settings_key_daily_alarms, {})
 
         # Return default alarms if none set
         defaults = {
-            "alarm_1": {"hour": 21, "minute": 0, "enabled": True},
-            "alarm_2": {"hour": 22, "minute": 0, "enabled": True},
-            "alarm_3": {"hour": 23, "minute": 0, "enabled": True}
+            "alarm_1": {"hour": 22, "minute": 55, "enabled": True},
+            "alarm_2": {"hour": 22, "minute": 57, "enabled": True},
+            "alarm_3": {"hour": 22, "minute": 59, "enabled": True}
         }
 
         # Merge with defaults for any missing alarms
