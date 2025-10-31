@@ -23,26 +23,26 @@ import { FaClock, FaMinus, FaPlus, FaVolumeDown } from "react-icons/fa";
 import { PropsWithChildren, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { SteamUtils } from "./utils/steam";
 
-// Time calculation utilities
-function getSecondsUntilTime(targetHour: number): number {
-  const now = new Date();
-  const target = new Date();
-  target.setHours(targetHour, 0, 0, 0);
+// // Time calculation utilities
+// function getSecondsUntilTime(targetHour: number): number {
+//   const now = new Date();
+//   const target = new Date();
+//   target.setHours(targetHour, 0, 0, 0);
 
-  // If the target time has already passed today, set it for tomorrow
-  if (target <= now) {
-    target.setDate(target.getDate() + 1);
-  }
+//   // If the target time has already passed today, set it for tomorrow
+//   if (target <= now) {
+//     target.setDate(target.getDate() + 1);
+//   }
 
-  // Calculate seconds until target time
-  return Math.floor((target.getTime() - now.getTime()) / 1000);
-}
+//   // Calculate seconds until target time
+//   return Math.floor((target.getTime() - now.getTime()) / 1000);
+// }
 
-function formatTimeUntil(targetHour: number): string {
-  const hour12 = targetHour === 0 ? 12 : targetHour > 12 ? targetHour - 12 : targetHour;
-  const period = targetHour < 12 ? 'AM' : 'PM';
-  return `${hour12}:00 ${period}`;
-}
+// function formatTimeUntil(targetHour: number): string {
+//   const hour12 = targetHour === 0 ? 12 : targetHour > 12 ? targetHour - 12 : targetHour;
+//   const period = targetHour < 12 ? 'AM' : 'PM';
+//   return `${hour12}:00 ${period}`;
+// }
 
 // This function calls the python function "start_timer", which takes in no arguments and returns nothing.
 // It starts a (python) timer which eventually emits the event 'timer_event'
@@ -167,7 +167,7 @@ interface AlarmButtonProps {
   onClick: () => void;
 }
 
-const AlarmButton = ({ slot, hour, minute, onClick }: AlarmButtonProps) => {
+const AlarmButton = ({ hour, minute, onClick }: AlarmButtonProps) => {
   const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
 
   return (
