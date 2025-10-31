@@ -12,8 +12,8 @@ importers:
         specifier: ^1.1.2
         version: 1.1.2
       '@rollup/rollup-linux-x64-musl':
-        specifier: 4.22.5
-        version: 4.22.5
+        specifier: 4.52.5
+        version: 4.52.5
       react-icons:
         specifier: ^5.3.0
         version: 5.5.0(react@19.2.0)
@@ -37,7 +37,7 @@ importers:
         specifier: ^5.28.5
         version: 5.28.5
       rollup:
-        specifier: ^4.22.5
+        specifier: 4.52.5
         version: 4.52.5
       typescript:
         specifier: ^5.6.2
@@ -225,11 +225,6 @@ packages:
 
   '@rollup/rollup-linux-x64-gnu@4.52.5':
     resolution: {integrity: sha512-hXGLYpdhiNElzN770+H2nlx+jRog8TyynpTVzdlc6bndktjKWyZyiCsuDAlpd+j+W+WNqfcyAWz9HxxIGfZm1Q==}
-    cpu: [x64]
-    os: [linux]
-
-  '@rollup/rollup-linux-x64-musl@4.22.5':
-    resolution: {integrity: sha512-uBa2e28ohzNNwjr6Uxm4XyaA1M/8aTgfF2T7UIlElLaeXkgpmIJ2EitVNQxjO9xLLLy60YqAgKn/AqSpCUkE9g==}
     cpu: [x64]
     os: [linux]
 
@@ -1105,10 +1100,7 @@ snapshots:
   '@rollup/rollup-linux-x64-gnu@4.52.5':
     optional: true
 
-  '@rollup/rollup-linux-x64-musl@4.22.5': {}
-
-  '@rollup/rollup-linux-x64-musl@4.52.5':
-    optional: true
+  '@rollup/rollup-linux-x64-musl@4.52.5': {}
 
   '@rollup/rollup-openharmony-arm64@4.52.5':
     optional: true
