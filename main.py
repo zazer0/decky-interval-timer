@@ -1,45 +1,143 @@
-from settings import SettingsManager # type: ignore
-from datetime import datetime, timedelta
-import time
+import decky
 import os
-import decky # type: ignore
+import json
 import asyncio
+import time
+from datetime import datetime, date
 
-settingsDir = os.environ["DECKY_PLUGIN_SETTINGS_DIR"]
+class SettingsManager:
+    def __init__(self, name, settings_directory):
+        self._name = name
+        self._settings_directory = settings_directory
+        self._settings_path = os.path.join(self._settings_directory, f"{name}.json")
+        self._settings = {}
 
-decky.logger.info('Simple Timer: Settings path = {}'.format(os.path.join(settingsDir, 'settings.json')))
-settings = SettingsManager(name="settings", settings_directory=settingsDir)
-settings.read()
+    def read(self):
+        try:
+            if not os.path.exists(self._settings_directory):
+                os.makedirs(self._settings_directory, exist_ok=True)
+            
+            if os.path.exists(self._settings_path):
+                with open(self._settings_path, 'r') as f:
+                    self._settings = json.load(f)
+            else:
+                self._settings = {}
+            return True
+        except Exception as e:
+            decky.logger.error(f"Failed to read settings: {e}")
+            return False
 
-settings_key_subtle_mode="subtle_mode"
-settings_key_recent_timers="recent_timers_seconds"
-settings_key_timer_end="timer_end"
-settings_key_daily_alarms="daily_alarms"
+    def commit(self):
+        try:
+            if not os.path.exists(self._settings_directory):
+                os.makedirs(self._settings_directory, exist_ok=True)
+                
+            with open(self._settings_path, 'w') as f:
+                json.dump(self._settings, f, indent=4)
+            return True
+        except Exception as e:
+            decky.logger.error(f"Failed to save settings: {e}")
+            return False
+
+    def getSetting(self, key, default):
+        return self._settings.get(key, default)
+
+    def setSetting(self, key, value):
+        self._settings[key] = value
+
+# Constants
+settings_key_subtle_mode = "subtle_mode"
+settings_key_recent_timers = "recent_timers_seconds"
+settings_key_timer_end = "timer_end"
+settings_key_daily_alarms = "daily_alarms"
 
 class Plugin:
+    timer_task = None
+    alarm_checker_task = None
+    settings = None
 
-    timer_task: any
-    alarm_checker_task: any
+    async def _main(self):
+        self.loop = asyncio.get_event_loop()
+        self.seconds_remaining = 0
+        
+        # Initialize Settings
+        self.settingsDir = decky.DECKY_PLUGIN_SETTINGS_DIR
+        decky.logger.info(f'Simple Timer: Settings path = {os.path.join(self.settingsDir, "settings.json")}')
+        self.settings = SettingsManager(name="settings", settings_directory=self.settingsDir)
+        self.settings.read()
 
-    def get_time_difference(self, target_timestamp: datetime):
+        timer_end_ts = self.settings.getSetting(settings_key_timer_end, None)
+
+        if timer_end_ts is not None:
+            future = datetime.fromtimestamp(timer_end_ts)
+            self.seconds_remaining = self.get_time_difference(future.timestamp())
+            if self.seconds_remaining <= 0:
+                decky.logger.info("Found expired timer -- cancelling")
+                await self.cancel_timer()
+            else:
+                decky.logger.info("Found existing timer -- resuming")
+                await self.start_timer(self.seconds_remaining)
+
+        await self.load_recents()
+        await self.load_subtle_mode()
+
+        # Start daily alarm checker
+        self.alarm_checker_task = self.loop.create_task(self.alarm_checker_loop())
+
+        decky.logger.info("Simple Timer has been initialised.")
+
+    async def _unload(self):
+        await self.cancel_timer()
+        if self.alarm_checker_task is not None:
+            self.alarm_checker_task.cancel()
+        decky.logger.info("Simple Timer has been unloaded.")
+
+    async def _uninstall(self):
+        decky.logger.info("Simple Timer has been uninstalled.")
+
+    async def _migration(self):
+        decky.logger.info("Simple Timer is being migrated.")
+        # Add migration logic if needed, typically handled by decky.migrate_settings etc
+        # existing migration code from original file:
+        decky.migrate_logs(os.path.join(decky.DECKY_USER_HOME, ".config", "decky-simple-timer", "template.log"))
+        decky.migrate_settings(
+            os.path.join(decky.DECKY_HOME, "settings", "template.json"),
+            os.path.join(decky.DECKY_USER_HOME, ".config", "decky-simple-timer"))
+
+        decky.migrate_runtime(
+            os.path.join(decky.DECKY_HOME, "template"),
+            os.path.join(decky.DECKY_USER_HOME, ".local", "share", "decky-simple-timer"))
+
+    def get_time_difference(self, target_timestamp):
         return target_timestamp - time.time()
     
     # region: Settings
+    # Wrapper methods to maintain frontend compatibility if called directly (though they are mostly internal usage now)
+    # Actually frontend calls 'start_timer' etc.
+    # The original code exposed these via Plugin methods?
+    # In Decky, public methods of Plugin class are exposed to frontend.
+    # The original code had `async def settings_read(self):` etc. 
+    # I should keep them if the frontend calls them. 
+    # Checking src/index.tsx: 
+    # It calls: start_timer, cancel_timer, set_subtle_mode, load_recents, load_remaining_seconds, load_subtle_mode, set_daily_alarm, get_daily_alarms.
+    # It DOES NOT call settings_read, settings_commit, etc directly.
+    # So I can keep those internal or just use self.settings directly.
+    
     async def settings_read(self):
         decky.logger.info('Reading settings')
-        return settings.read()
+        return self.settings.read()
     
     async def settings_commit(self):
         decky.logger.info('Saving settings')
-        return settings.commit()
+        return self.settings.commit()
     
     async def settings_getSetting(self, key: str, defaults):
-        decky.logger.info('Get {}'.format(key))
-        return settings.getSetting(key, defaults)
+        # decky.logger.info('Get {}'.format(key)) # Reduced logging spam
+        return self.settings.getSetting(key, defaults)
     
     async def settings_setSetting(self, key: str, value):
         decky.logger.info('Set {}: {}'.format(key, value))
-        return settings.setSetting(key, value)
+        return self.settings.setSetting(key, value)
 
     # endregion
 
@@ -67,6 +165,10 @@ class Plugin:
         await self.settings_setSetting(settings_key_timer_end, future_time)
         await self.settings_commit()
 
+        # Cancel existing task if any
+        if self.timer_task is not None:
+            self.timer_task.cancel()
+            
         self.timer_task = self.loop.create_task(self.timer_handler(future_timestamp))
 
     async def timer_handler(self, timer_end: datetime):
@@ -95,6 +197,7 @@ class Plugin:
         await decky.emit("simple_timer_seconds_updated", self.seconds_remaining)
         if self.timer_task is not None:
             self.timer_task.cancel()
+            self.timer_task = None
         
     async def load_recents(self):
         recent_timers = await self.settings_getSetting(settings_key_recent_timers, [])
@@ -122,7 +225,6 @@ class Plugin:
         alarm_key = f"alarm_{slot}"
 
         # Get current date for last_triggered tracking
-        from datetime import date
         today = date.today().isoformat()
 
         alarms[alarm_key] = {
@@ -138,8 +240,7 @@ class Plugin:
 
     async def get_daily_alarms(self):
         """Get all daily alarm configurations"""
-        # INFO: comment setting retrieval since UI not clickable bug currently
-        #alarms = await self.settings_getSetting(settings_key_daily_alarms, {})
+        alarms = await self.settings_getSetting(settings_key_daily_alarms, {})
 
         # Return default alarms if none set
         defaults = {
@@ -149,9 +250,15 @@ class Plugin:
         }
 
         # Merge with defaults for any missing alarms
+        updated = False
         for key, default in defaults.items():
             if key not in alarms:
                 alarms[key] = default
+                updated = True
+        
+        if updated:
+            await self.settings_setSetting(settings_key_daily_alarms, alarms) # Don't commit here to avoid disk thrash on every read, or do? It's rare.
+            # Let's not commit on read to be safe, just return merged.
 
         return alarms
 
@@ -169,14 +276,14 @@ class Plugin:
 
     async def check_daily_alarms(self):
         """Check if any daily alarms should trigger now"""
-        from datetime import datetime, date
-
         now = datetime.now()
         current_hour = now.hour
         current_minute = now.minute
         today = date.today().isoformat()
 
         alarms = await self.settings_getSetting(settings_key_daily_alarms, {})
+        
+        updated_alarms = False
 
         for alarm_key, alarm_data in alarms.items():
             if not alarm_data.get("enabled", True):
@@ -193,57 +300,12 @@ class Plugin:
 
                 # Update last triggered date
                 alarm_data["last_triggered"] = today
-                await self.settings_setSetting(settings_key_daily_alarms, alarms)
-                await self.settings_commit()
+                updated_alarms = True
 
                 # Emit alarm event (reuse existing timer event)
                 subtle = await self.settings_getSetting(settings_key_subtle_mode, False)
                 await decky.emit("simple_timer_event", f"Daily Alarm {slot}", subtle)
-
-    async def _main(self):
-        self.loop = asyncio.get_event_loop()
-        self.seconds_remaining = 0
-
-        await self.settings_read()
-        timer_end_ts = await self.settings_getSetting(settings_key_timer_end, None)
-
-        if timer_end_ts is not None:
-            future = datetime.fromtimestamp(timer_end_ts)
-            self.seconds_remaining = self.get_time_difference(future.timestamp())
-            if self.seconds_remaining <= 0:
-                decky.logger.info("Found expired timer -- cancelling")
-                await self.cancel_timer()
-            else:
-                decky.logger.info("Found existing timer -- resuming")
-                await self.start_timer(self.seconds_remaining)
-
-        await self.load_recents()
-        await self.load_subtle_mode()
-
-        # Start daily alarm checker
-        self.alarm_checker_task = self.loop.create_task(self.alarm_checker_loop())
-
-        decky.logger.info("Simple Timer has been initialised.")
-
-    async def _unload(self):
-        await self.cancel_timer()
-        if hasattr(self, 'alarm_checker_task') and self.alarm_checker_task is not None:
-            self.alarm_checker_task.cancel()
-        decky.logger.info("Simple Timer has been unloaded.")
-        pass
-
-    async def _uninstall(self):
-        decky.logger.info("Simple Timer has been uninstalled.")
-        pass
-
-    async def _migration(self):
-        decky.logger.info("Simple Timer is being migrated.")
-
-        decky.migrate_logs(os.path.join(decky.DECKY_USER_HOME, ".config", "decky-simple-timer", "template.log"))
-        decky.migrate_settings(
-            os.path.join(decky.DECKY_HOME, "settings", "template.json"),
-            os.path.join(decky.DECKY_USER_HOME, ".config", "decky-simple-timer"))
-
-        decky.migrate_runtime(
-            os.path.join(decky.DECKY_HOME, "template"),
-            os.path.join(decky.DECKY_USER_HOME, ".local", "share", "decky-simple-timer"))
+        
+        if updated_alarms:
+            await self.settings_setSetting(settings_key_daily_alarms, alarms)
+            await self.settings_commit()
