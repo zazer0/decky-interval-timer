@@ -50,6 +50,7 @@ settings_key_subtle_mode = "subtle_mode"
 settings_key_recent_timers = "recent_timers_seconds"
 settings_key_timer_end = "timer_end"
 settings_key_daily_alarms = "daily_alarms"
+settings_key_interval_timer = "interval_timer"
 
 class Plugin:
     timer_task = None
@@ -261,6 +262,40 @@ class Plugin:
             # Let's not commit on read to be safe, just return merged.
 
         return alarms
+
+    async def set_interval_timer(self, start_hour: int, start_minute: int, end_hour: int, end_minute: int):
+        """Set the interval timer start and end times"""
+        interval = {
+            "start_hour": start_hour,
+            "start_minute": start_minute,
+            "end_hour": end_hour,
+            "end_minute": end_minute,
+            "enabled": True,
+            "last_triggered_key": None
+        }
+        await self.settings_setSetting(settings_key_interval_timer, interval)
+        await self.settings_commit()
+        decky.logger.info(f"Set interval timer: {start_hour:02d}:{start_minute:02d} - {end_hour:02d}:{end_minute:02d}")
+
+    async def get_interval_timer(self):
+        """Get the interval timer configuration"""
+        default = {
+            "start_hour": 18,
+            "start_minute": 0,
+            "end_hour": 22,
+            "end_minute": 0,
+            "enabled": False,
+            "last_triggered_key": None
+        }
+        return await self.settings_getSetting(settings_key_interval_timer, default)
+
+    async def toggle_interval_timer(self, enabled: bool):
+        """Enable or disable the interval timer"""
+        interval = await self.get_interval_timer()
+        interval["enabled"] = enabled
+        await self.settings_setSetting(settings_key_interval_timer, interval)
+        await self.settings_commit()
+        decky.logger.info(f"Interval timer enabled: {enabled}")
 
     async def alarm_checker_loop(self):
         """Background task that checks for daily alarm triggers every 30 seconds"""
