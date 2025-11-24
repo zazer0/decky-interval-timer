@@ -56,6 +56,15 @@ const loadSecondsRemaining = callable<[void], void>("load_remaining_seconds");
 const loadSubtleMode = callable<[void], boolean>("load_subtle_mode");
 const setDailyAlarm = callable<[slot: number, hour: number, minute: number], void>("set_daily_alarm");
 const getDailyAlarms = callable<[], Record<string, {hour: number, minute: number, enabled: boolean}>>("get_daily_alarms");
+const setIntervalTimerCallable = callable<
+  [startHour: number, startMinute: number, endHour: number, endMinute: number],
+  void
+>("set_interval_timer");
+const getIntervalTimer = callable<
+  [],
+  {startHour: number, startMinute: number, endHour: number, endMinute: number, enabled: boolean}
+>("get_interval_timer");
+const toggleIntervalTimerCallable = callable<[enabled: boolean], void>("toggle_interval_timer");
 
 type MinutesButtonProps = PropsWithChildren<ButtonProps & { type: 'positive' | 'negative' }>;
 
@@ -192,6 +201,14 @@ const AlarmButton = ({ hour, minute, onClick }: AlarmButtonProps) => {
 
 const directoryPath = import.meta.url.substring(0, import.meta.url.lastIndexOf('/') + 1);
 
+interface IntervalTimerConfig {
+  startHour: number;
+  startMinute: number;
+  endHour: number;
+  endMinute: number;
+  enabled: boolean;
+}
+
 function Content() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [timerMinutes, setTimerMinutes] = useState(5);
@@ -207,6 +224,21 @@ function Content() {
   const [timePickerOpen, setTimePickerOpen] = useState<{open: boolean, slot: number, hour: number, minute: number}>({
     open: false, slot: 1, hour: 21, minute: 0
   });
+
+  const [intervalTimer, setIntervalTimerState] = useState<IntervalTimerConfig>({
+    startHour: 18,
+    startMinute: 0,
+    endHour: 22,
+    endMinute: 0,
+    enabled: false
+  });
+
+  const [intervalPickerOpen, setIntervalPickerOpen] = useState<{
+    open: boolean;
+    type: 'start' | 'end';
+    hour: number;
+    minute: number;
+  }>({ open: false, type: 'start', hour: 18, minute: 0 });
 
   useEffect(() => {
     const handleRefreshRecents = (recents: number[]) => {
