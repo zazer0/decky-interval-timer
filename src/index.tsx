@@ -295,6 +295,7 @@ function Content() {
     loadSecondsRemaining();
     loadSubtleMode();
     loadDailyAlarms();
+    loadIntervalTimer();
 
     return () => {
       removeEventListener("simple_timer_refresh_recents", handleRefreshRecents);
@@ -331,6 +332,53 @@ function Content() {
       setDailyAlarms(alarms);
     } catch (error) {
       console.error("Failed to load daily alarms:", error);
+    }
+  };
+
+  const handleIntervalClick = (type: 'start' | 'end') => {
+    const hour = type === 'start' ? intervalTimer.startHour : intervalTimer.endHour;
+    const minute = type === 'start' ? intervalTimer.startMinute : intervalTimer.endMinute;
+    setIntervalPickerOpen({ open: true, type, hour, minute });
+  };
+
+  const handleIntervalSave = async (hour: number, minute: number) => {
+    const newInterval = { ...intervalTimer };
+    if (intervalPickerOpen.type === 'start') {
+      newInterval.startHour = hour;
+      newInterval.startMinute = minute;
+    } else {
+      newInterval.endHour = hour;
+      newInterval.endMinute = minute;
+    }
+    setIntervalTimerState(newInterval);
+    setIntervalPickerOpen({ ...intervalPickerOpen, open: false });
+
+    // Save to backend
+    await setIntervalTimerCallable(
+      newInterval.startHour,
+      newInterval.startMinute,
+      newInterval.endHour,
+      newInterval.endMinute
+    );
+  };
+
+  const handleIntervalToggle = async (enabled: boolean) => {
+    setIntervalTimerState(prev => ({ ...prev, enabled }));
+    await toggleIntervalTimerCallable(enabled);
+  };
+
+  const loadIntervalTimer = async () => {
+    try {
+      const config = await getIntervalTimer();
+      setIntervalTimerState({
+        startHour: config.startHour,
+        startMinute: config.startMinute,
+        endHour: config.endHour,
+        endMinute: config.endMinute,
+        enabled: config.enabled
+      });
+    } catch (error) {
+      console.error("Failed to load interval timer:", error);
     }
   };
 
