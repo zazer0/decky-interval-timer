@@ -95,13 +95,14 @@ const MinutesButton = ({ children, type, ...props }: MinutesButtonProps) => {
 }
 
 interface TimePickerModalProps {
+  title: string;
   currentHour: number;
   currentMinute: number;
   onSave: (hour: number, minute: number) => void;
   closeModal: () => void;
 }
 
-const TimePickerModal = ({ currentHour, currentMinute, onSave, closeModal }: TimePickerModalProps) => {
+const TimePickerModal = ({ title, currentHour, currentMinute, onSave, closeModal }: TimePickerModalProps) => {
   const [hour, setHour] = useState(currentHour);
   const [minute, setMinute] = useState(currentMinute);
 
@@ -115,7 +116,7 @@ const TimePickerModal = ({ currentHour, currentMinute, onSave, closeModal }: Tim
 
   return (
     <ConfirmModal
-      strTitle="Set Daily Alarm"
+      strTitle={title}
       strDescription="Set time for daily alarm (24-hour format)"
       strOKButtonText="Save"
       strCancelButtonText="Cancel"
@@ -196,6 +197,39 @@ const AlarmButton = ({ hour, minute, onClick }: AlarmButtonProps) => {
     >
       {timeStr}
     </Button>
+  );
+};
+
+interface IntervalButtonProps {
+  label: string;
+  hour: number;
+  minute: number;
+  onClick: () => void;
+}
+
+const IntervalButton = ({ label, hour, minute, onClick }: IntervalButtonProps) => {
+  const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+      <span style={{ fontSize: 12, color: '#aaaaaa' }}>{label}</span>
+      <Button
+        focusable
+        onClick={onClick}
+        style={{
+          fontSize: 14,
+          padding: '6px 12px',
+          borderRadius: 6,
+          backgroundColor: '#556677',
+          color: '#ffffff',
+          minWidth: '65px',
+          textAlign: 'center',
+          border: 0
+        }}
+      >
+        {timeStr}
+      </Button>
+    </div>
   );
 };
 
@@ -325,17 +359,39 @@ function Content() {
 
         {secondsRemaining <= 0 ? (
           <PanelSectionRow>
-            <Focusable flow-children="row" style={{ display: 'flex', justifyContent: 'center', gap: 8, paddingBottom: 8 }}>
-              {Object.entries(dailyAlarms).map(([key, alarm], idx) => (
-                <AlarmButton
-                  key={key}
-                  slot={idx + 1}
-                  hour={alarm.hour}
-                  minute={alarm.minute}
-                  onClick={() => handleAlarmClick(idx + 1)}
-                />
-              ))}
+            <Focusable flow-children="row" style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: 16,
+              paddingBottom: 8
+            }}>
+              <IntervalButton
+                label="Start"
+                hour={intervalTimer.startHour}
+                minute={intervalTimer.startMinute}
+                onClick={() => handleIntervalClick('start')}
+              />
+              <span style={{ fontSize: 16, color: '#888888' }}>to</span>
+              <IntervalButton
+                label="End"
+                hour={intervalTimer.endHour}
+                minute={intervalTimer.endMinute}
+                onClick={() => handleIntervalClick('end')}
+              />
             </Focusable>
+          </PanelSectionRow>
+        ) : null}
+
+        {secondsRemaining <= 0 ? (
+          <PanelSectionRow>
+            <ToggleField
+              icon={<FaClock />}
+              checked={intervalTimer.enabled}
+              label="Every 5 Min Reminder"
+              description="Popup every 5 minutes between start and end times."
+              onChange={handleIntervalToggle}
+            />
           </PanelSectionRow>
         ) : null}
 
@@ -402,10 +458,21 @@ function Content() {
 
       {timePickerOpen.open && (
         <TimePickerModal
+          title="Set Daily Alarm"
           currentHour={timePickerOpen.hour}
           currentMinute={timePickerOpen.minute}
           onSave={handleAlarmSave}
           closeModal={() => setTimePickerOpen({ ...timePickerOpen, open: false })}
+        />
+      )}
+
+      {intervalPickerOpen.open && (
+        <TimePickerModal
+          title={intervalPickerOpen.type === 'start' ? "Set Start Time" : "Set End Time"}
+          currentHour={intervalPickerOpen.hour}
+          currentMinute={intervalPickerOpen.minute}
+          onSave={handleIntervalSave}
+          closeModal={() => setIntervalPickerOpen({ ...intervalPickerOpen, open: false })}
         />
       )}
     </div>
