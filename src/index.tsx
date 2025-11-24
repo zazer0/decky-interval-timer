@@ -54,8 +54,6 @@ const saveSubtleMode = callable<[subtle: boolean], void>("set_subtle_mode");
 const loadRecents = callable<[void], void>("load_recents");
 const loadSecondsRemaining = callable<[void], void>("load_remaining_seconds");
 const loadSubtleMode = callable<[void], boolean>("load_subtle_mode");
-const setDailyAlarm = callable<[slot: number, hour: number, minute: number], void>("set_daily_alarm");
-const getDailyAlarms = callable<[], Record<string, {hour: number, minute: number, enabled: boolean}>>("get_daily_alarms");
 const setIntervalTimerCallable = callable<
   [startHour: number, startMinute: number, endHour: number, endMinute: number],
   void
@@ -170,36 +168,6 @@ const TimePickerModal = ({ title, currentHour, currentMinute, onSave, closeModal
   );
 };
 
-interface AlarmButtonProps {
-  slot: number;
-  hour: number;
-  minute: number;
-  onClick: () => void;
-}
-
-const AlarmButton = ({ hour, minute, onClick }: AlarmButtonProps) => {
-  const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-
-  return (
-    <Button
-      focusable
-      onClick={onClick}
-      style={{
-        fontSize: 14,
-        padding: '6px 12px',
-        borderRadius: 6,
-        backgroundColor: '#556677',
-        color: '#ffffff',
-        minWidth: '65px',
-        textAlign: 'center',
-        border: 0
-      }}
-    >
-      {timeStr}
-    </Button>
-  );
-};
-
 interface IntervalButtonProps {
   label: string;
   hour: number;
@@ -250,14 +218,6 @@ function Content() {
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [recentTimerSeconds, setRecentTimerSeconds] = useState<number[] | null>();
   const [subtleMode, setSubtleMode] = useState<boolean>(false);
-  const [dailyAlarms, setDailyAlarms] = useState<Record<string, {hour: number, minute: number, enabled: boolean}>>({
-    alarm_1: {hour: 21, minute: 0, enabled: true},
-    alarm_2: {hour: 22, minute: 0, enabled: true},
-    alarm_3: {hour: 23, minute: 0, enabled: true}
-  });
-  const [timePickerOpen, setTimePickerOpen] = useState<{open: boolean, slot: number, hour: number, minute: number}>({
-    open: false, slot: 1, hour: 21, minute: 0
-  });
 
   const [intervalTimer, setIntervalTimerState] = useState<IntervalTimerConfig>({
     startHour: 18,
@@ -294,7 +254,6 @@ function Content() {
     loadRecents();
     loadSecondsRemaining();
     loadSubtleMode();
-    loadDailyAlarms();
     loadIntervalTimer();
 
     return () => {
@@ -303,37 +262,6 @@ function Content() {
       removeEventListener("simple_timer_subtle", handleSubtleModeUpdate);
     }
   }, []);
-
-  const handleAlarmClick = (slot: number) => {
-    const alarmKey = `alarm_${slot}`;
-    const alarm = dailyAlarms[alarmKey];
-    setTimePickerOpen({
-      open: true,
-      slot,
-      hour: alarm.hour,
-      minute: alarm.minute
-    });
-  };
-
-  const handleAlarmSave = async (hour: number, minute: number) => {
-    await setDailyAlarm(timePickerOpen.slot, hour, minute);
-
-    // Update local state
-    const alarmKey = `alarm_${timePickerOpen.slot}`;
-    setDailyAlarms(prev => ({
-      ...prev,
-      [alarmKey]: { hour, minute, enabled: true }
-    }));
-  };
-
-  const loadDailyAlarms = async () => {
-    try {
-      const alarms = await getDailyAlarms();
-      setDailyAlarms(alarms);
-    } catch (error) {
-      console.error("Failed to load daily alarms:", error);
-    }
-  };
 
   const handleIntervalClick = (type: 'start' | 'end') => {
     const hour = type === 'start' ? intervalTimer.startHour : intervalTimer.endHour;
@@ -504,16 +432,6 @@ function Content() {
         </PanelSectionRow>
       </PanelSection>
 
-      {timePickerOpen.open && (
-        <TimePickerModal
-          title="Set Daily Alarm"
-          currentHour={timePickerOpen.hour}
-          currentMinute={timePickerOpen.minute}
-          onSave={handleAlarmSave}
-          closeModal={() => setTimePickerOpen({ ...timePickerOpen, open: false })}
-        />
-      )}
-
       {intervalPickerOpen.open && (
         <TimePickerModal
           title={intervalPickerOpen.type === 'start' ? "Set Start Time" : "Set End Time"}
@@ -550,8 +468,6 @@ export default definePlugin(() => {
     }
   }
 
-  // Note: Daily alarms also use the simple_timer_event, so they are automatically
-  // handled by the existing handleTimerComplete function in the plugin definition
   addEventListener<[message: string, subtle: boolean]>("simple_timer_event", handleTimerComplete);
 
   return {

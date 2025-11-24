@@ -49,7 +49,6 @@ class SettingsManager:
 settings_key_subtle_mode = "subtle_mode"
 settings_key_recent_timers = "recent_timers_seconds"
 settings_key_timer_end = "timer_end"
-settings_key_daily_alarms = "daily_alarms"
 settings_key_interval_timer = "interval_timer"
 
 class Plugin:
@@ -220,49 +219,6 @@ class Plugin:
     async def load_remaining_seconds(self):
         await decky.emit("simple_timer_seconds_updated", self.seconds_remaining)
 
-    async def set_daily_alarm(self, slot: int, hour: int, minute: int):
-        """Set a daily alarm for slot 1, 2, or 3"""
-        alarms = await self.settings_getSetting(settings_key_daily_alarms, {})
-        alarm_key = f"alarm_{slot}"
-
-        # Get current date for last_triggered tracking
-        today = date.today().isoformat()
-
-        alarms[alarm_key] = {
-            "hour": hour,
-            "minute": minute,
-            "enabled": True,
-            "last_triggered": None
-        }
-
-        await self.settings_setSetting(settings_key_daily_alarms, alarms)
-        await self.settings_commit()
-        decky.logger.info(f"Set daily alarm {slot} to {hour:02d}:{minute:02d}")
-
-    async def get_daily_alarms(self):
-        """Get all daily alarm configurations"""
-        alarms = await self.settings_getSetting(settings_key_daily_alarms, {})
-
-        # Return default alarms if none set
-        defaults = {
-            "alarm_1": {"hour": 22, "minute": 55, "enabled": True},
-            "alarm_2": {"hour": 22, "minute": 57, "enabled": True},
-            "alarm_3": {"hour": 22, "minute": 59, "enabled": True}
-        }
-
-        # Merge with defaults for any missing alarms
-        updated = False
-        for key, default in defaults.items():
-            if key not in alarms:
-                alarms[key] = default
-                updated = True
-        
-        if updated:
-            await self.settings_setSetting(settings_key_daily_alarms, alarms) # Don't commit here to avoid disk thrash on every read, or do? It's rare.
-            # Let's not commit on read to be safe, just return merged.
-
-        return alarms
-
     async def set_interval_timer(self, start_hour: int, start_minute: int, end_hour: int, end_minute: int):
         """Set the interval timer start and end times"""
         interval = {
@@ -367,39 +323,3 @@ class Plugin:
                 break
             except Exception as e:
                 decky.logger.error(f"Error in interval timer checker: {e}")
-
-    async def check_daily_alarms(self):
-        """Check if any daily alarms should trigger now"""
-        now = datetime.now()
-        current_hour = now.hour
-        current_minute = now.minute
-        today = date.today().isoformat()
-
-        alarms = await self.settings_getSetting(settings_key_daily_alarms, {})
-        
-        updated_alarms = False
-
-        for alarm_key, alarm_data in alarms.items():
-            if not alarm_data.get("enabled", True):
-                continue
-
-            # Check if this alarm should trigger now
-            if (alarm_data["hour"] == current_hour and
-                alarm_data["minute"] == current_minute and
-                alarm_data.get("last_triggered") != today):
-
-                # Trigger the alarm
-                slot = alarm_key.split("_")[1]  # Extract slot number from "alarm_1" etc
-                decky.logger.info(f"Triggering daily alarm {slot} at {current_hour:02d}:{current_minute:02d}")
-
-                # Update last triggered date
-                alarm_data["last_triggered"] = today
-                updated_alarms = True
-
-                # Emit alarm event (reuse existing timer event)
-                subtle = await self.settings_getSetting(settings_key_subtle_mode, False)
-                await decky.emit("simple_timer_event", f"Daily Alarm {slot}", subtle)
-        
-        if updated_alarms:
-            await self.settings_setSetting(settings_key_daily_alarms, alarms)
-            await self.settings_commit()
