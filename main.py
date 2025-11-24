@@ -297,17 +297,76 @@ class Plugin:
         await self.settings_commit()
         decky.logger.info(f"Interval timer enabled: {enabled}")
 
+    def is_time_in_interval(self, current_hour: int, current_minute: int,
+                            start_hour: int, start_minute: int,
+                            end_hour: int, end_minute: int) -> bool:
+        """Check if current time is within interval, handling midnight crossings"""
+        current_minutes = current_hour * 60 + current_minute
+        start_minutes = start_hour * 60 + start_minute
+        end_minutes = end_hour * 60 + end_minute
+
+        if start_minutes <= end_minutes:
+            # Normal interval (e.g., 18:00 - 22:00)
+            return start_minutes <= current_minutes < end_minutes
+        else:
+            # Crosses midnight (e.g., 22:00 - 02:00)
+            return current_minutes >= start_minutes or current_minutes < end_minutes
+
+    def get_5min_slot_key(self, now: datetime) -> str:
+        """Generate unique key for current 5-minute window"""
+        slot_minute = (now.minute // 5) * 5
+        return f"{now.date().isoformat()}_{now.hour:02d}:{slot_minute:02d}"
+
+    async def check_interval_timer(self):
+        """Check if we should trigger an alert within the active interval"""
+        interval = await self.get_interval_timer()
+
+        if not interval.get("enabled", False):
+            return
+
+        now = datetime.now()
+
+        # Check if we're within the interval
+        in_interval = self.is_time_in_interval(
+            now.hour, now.minute,
+            interval["start_hour"], interval["start_minute"],
+            interval["end_hour"], interval["end_minute"]
+        )
+
+        if not in_interval:
+            return
+
+        # Get current 5-minute slot key
+        slot_key = self.get_5min_slot_key(now)
+
+        # Check if we already triggered for this slot
+        if interval.get("last_triggered_key") == slot_key:
+            return
+
+        # Trigger the alert
+        decky.logger.info(f"Interval timer triggering for slot: {slot_key}")
+
+        # Update last triggered
+        interval["last_triggered_key"] = slot_key
+        await self.settings_setSetting(settings_key_interval_timer, interval)
+        await self.settings_commit()
+
+        # Emit event
+        subtle = await self.settings_getSetting(settings_key_subtle_mode, False)
+        time_str = f"{now.hour:02d}:{now.minute:02d}"
+        await decky.emit("simple_timer_event", f"Interval Reminder ({time_str})", subtle)
+
     async def alarm_checker_loop(self):
-        """Background task that checks for daily alarm triggers every 30 seconds"""
+        """Background task that checks for interval timer triggers every 30 seconds"""
         while True:
             try:
-                await asyncio.sleep(30)  # Check every 30 seconds
-                await self.check_daily_alarms()
+                await asyncio.sleep(30)
+                await self.check_interval_timer()
             except asyncio.CancelledError:
-                decky.logger.info("Daily alarm checker task cancelled")
+                decky.logger.info("Interval timer checker task cancelled")
                 break
             except Exception as e:
-                decky.logger.error(f"Error in daily alarm checker: {e}")
+                decky.logger.error(f"Error in interval timer checker: {e}")
 
     async def check_daily_alarms(self):
         """Check if any daily alarms should trigger now"""
