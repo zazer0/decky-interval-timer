@@ -234,6 +234,21 @@ function Content() {
     minute: number;
   }>({ open: false, type: 'start', hour: 18, minute: 0 });
 
+  const loadIntervalTimer = async () => {
+    try {
+      const config = await getIntervalTimer();
+      setIntervalTimerState({
+        startHour: config.startHour,
+        startMinute: config.startMinute,
+        endHour: config.endHour,
+        endMinute: config.endMinute,
+        enabled: config.enabled
+      });
+    } catch (error) {
+      console.error("Failed to load interval timer:", error);
+    }
+  };
+
   useEffect(() => {
     const handleRefreshRecents = (recents: number[]) => {
       setRecentTimerSeconds(recents);
@@ -293,21 +308,6 @@ function Content() {
   const handleIntervalToggle = async (enabled: boolean) => {
     setIntervalTimerState(prev => ({ ...prev, enabled }));
     await toggleIntervalTimerCallable(enabled);
-  };
-
-  const loadIntervalTimer = async () => {
-    try {
-      const config = await getIntervalTimer();
-      setIntervalTimerState({
-        startHour: config.startHour,
-        startMinute: config.startMinute,
-        endHour: config.endHour,
-        endMinute: config.endMinute,
-        enabled: config.enabled
-      });
-    } catch (error) {
-      console.error("Failed to load interval timer:", error);
-    }
   };
 
   useLayoutEffect(() => {

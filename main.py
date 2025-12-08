@@ -69,14 +69,19 @@ class Plugin:
         timer_end_ts = self.settings.getSetting(settings_key_timer_end, None)
 
         if timer_end_ts is not None:
-            future = datetime.fromtimestamp(timer_end_ts)
-            self.seconds_remaining = self.get_time_difference(future.timestamp())
-            if self.seconds_remaining <= 0:
-                decky.logger.info("Found expired timer -- cancelling")
-                await self.cancel_timer()
-            else:
-                decky.logger.info("Found existing timer -- resuming")
-                await self.start_timer(self.seconds_remaining)
+            try:
+                future = datetime.fromtimestamp(timer_end_ts)
+                self.seconds_remaining = self.get_time_difference(future.timestamp())
+                if self.seconds_remaining <= 0:
+                    decky.logger.info("Found expired timer -- cancelling")
+                    await self.cancel_timer()
+                else:
+                    decky.logger.info("Found existing timer -- resuming")
+                    await self.start_timer(self.seconds_remaining)
+            except Exception as e:
+                decky.logger.error(f"Failed to restore timer: {e}")
+                self.settings.setSetting(settings_key_timer_end, None)
+                self.settings.commit()
 
         await self.load_recents()
         await self.load_subtle_mode()
@@ -126,7 +131,7 @@ class Plugin:
     async def settings_read(self):
         decky.logger.info('Reading settings')
         return self.settings.read()
-    
+
     async def settings_commit(self):
         decky.logger.info('Saving settings')
         return self.settings.commit()
