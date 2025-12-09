@@ -293,15 +293,19 @@ function Content() {
 
         {secondsRemaining <= 0 ? (
           <PanelSectionRow>
-            <Focusable flow-children="row" style={{ display: 'flex', justifyContent: 'center', gap: 8, paddingBottom: 8 }}>
-              {Object.entries(dailyAlarms).map(([key, alarm], idx) => (
-                <AlarmButton
-                  key={key}
-                  slot={idx + 1}
-                  hour={alarm.hour}
-                  minute={alarm.minute}
-                  onClick={() => handleAlarmClick(idx + 1)}
-                />
+            <Focusable flow-children="row" style={{ display: 'flex', justifyContent: 'center', gap: 16, paddingBottom: 8 }}>
+              {Object.entries(dailyAlarms).slice(0, 2).map(([key, alarm], idx) => (
+                <div key={key} style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: 12, marginBottom: 4, color: '#aaaaaa' }}>
+                    {idx === 0 ? 'START' : 'END'}
+                  </div>
+                  <AlarmButton
+                    slot={idx + 1}
+                    hour={alarm.hour}
+                    minute={alarm.minute}
+                    onClick={() => handleAlarmClick(idx + 1)}
+                  />
+                </div>
               ))}
             </Focusable>
           </PanelSectionRow>
