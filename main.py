@@ -275,37 +275,50 @@ class Plugin:
                 decky.logger.error(f"Error in daily alarm checker: {e}")
 
     async def check_daily_alarms(self):
-        """Check if any daily alarms should trigger now"""
+        """Check if we should trigger an interval reminder now"""
         now = datetime.now()
         current_hour = now.hour
         current_minute = now.minute
         today = date.today().isoformat()
 
+        # Only trigger on 5-minute marks
+        if current_minute % 5 != 0:
+            return
+
         alarms = await self.settings_getSetting(settings_key_daily_alarms, {})
-        
-        updated_alarms = False
 
-        for alarm_key, alarm_data in alarms.items():
-            if not alarm_data.get("enabled", True):
-                continue
+        # Use alarm_1 as START, alarm_2 as END
+        start = alarms.get("alarm_1", {"hour": 21, "minute": 0})
+        end = alarms.get("alarm_2", {"hour": 23, "minute": 0})
 
-            # Check if this alarm should trigger now
-            if (alarm_data["hour"] == current_hour and
-                alarm_data["minute"] == current_minute and
-                alarm_data.get("last_triggered") != today):
+        # Check if current time is within interval
+        current_mins = current_hour * 60 + current_minute
+        start_mins = start["hour"] * 60 + start["minute"]
+        end_mins = end["hour"] * 60 + end["minute"]
 
-                # Trigger the alarm
-                slot = alarm_key.split("_")[1]  # Extract slot number from "alarm_1" etc
-                decky.logger.info(f"Triggering daily alarm {slot} at {current_hour:02d}:{current_minute:02d}")
+        in_interval = False
+        if start_mins <= end_mins:
+            # Normal: 21:00 → 23:00
+            in_interval = start_mins <= current_mins <= end_mins
+        else:
+            # Midnight crossing: 22:00 → 02:00
+            in_interval = current_mins >= start_mins or current_mins <= end_mins
 
-                # Update last triggered date
-                alarm_data["last_triggered"] = today
-                updated_alarms = True
+        if not in_interval:
+            return
 
-                # Emit alarm event (reuse existing timer event)
-                subtle = await self.settings_getSetting(settings_key_subtle_mode, False)
-                await decky.emit("simple_timer_event", f"Daily Alarm {slot}", subtle)
-        
-        if updated_alarms:
-            await self.settings_setSetting(settings_key_daily_alarms, alarms)
-            await self.settings_commit()
+        # Check if already triggered this minute
+        trigger_key = f"{today}-{current_hour:02d}:{current_minute:02d}"
+        last_triggered = alarms.get("last_triggered", "")
+
+        if trigger_key == last_triggered:
+            return
+
+        # Trigger!
+        alarms["last_triggered"] = trigger_key
+        await self.settings_setSetting(settings_key_daily_alarms, alarms)
+        await self.settings_commit()
+
+        subtle = await self.settings_getSetting(settings_key_subtle_mode, False)
+        await decky.emit("simple_timer_event", f"Reminder ({current_hour:02d}:{current_minute:02d})", subtle)
+        decky.logger.info(f"Interval triggered at {current_hour:02d}:{current_minute:02d}")
