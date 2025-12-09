@@ -85,89 +85,25 @@ const MinutesButton = ({ children, type, ...props }: MinutesButtonProps) => {
   )
 }
 
-interface TimePickerModalProps {
-  currentHour: number;
-  currentMinute: number;
-  onSave: (hour: number, minute: number) => Promise<void>;
-  closeModal: () => void;
-}
-
-const TimePickerModal = ({ currentHour, currentMinute, onSave, closeModal }: TimePickerModalProps) => {
-  const [hour, setHour] = useState(currentHour);
-  const [minute, setMinute] = useState(currentMinute);
-
-  const handleSave = async () => {
-    // Validate hour and minute ranges
-    const validHour = Math.max(0, Math.min(23, hour));
-    const validMinute = Math.max(0, Math.min(59, minute));
-    await onSave(validHour, validMinute);
-  };
-
-  return (
-    <ConfirmModal
-      strTitle="Set Daily Alarm"
-      strDescription="Set time for daily alarm (24-hour format)"
-      strOKButtonText="Save"
-      strCancelButtonText="Cancel"
-      onOK={handleSave}
-      onCancel={closeModal}
-    >
-      <div style={{ display: 'flex', gap: 16, alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <label style={{ fontSize: 14, color: '#ffffff' }}>Hour (0-23)</label>
-          <input
-            type="number"
-            min="0"
-            max="23"
-            value={hour}
-            onChange={(e) => setHour(parseInt(e.target.value) || 0)}
-            style={{
-              width: 80,
-              padding: 8,
-              fontSize: 16,
-              textAlign: 'center',
-              backgroundColor: '#2d3748',
-              color: '#ffffff',
-              border: '1px solid #4a5568',
-              borderRadius: 4
-            }}
-          />
-        </div>
-        <div style={{ fontSize: 20, color: '#ffffff' }}>:</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <label style={{ fontSize: 14, color: '#ffffff' }}>Minute (0-59)</label>
-          <input
-            type="number"
-            min="0"
-            max="59"
-            value={minute}
-            onChange={(e) => setMinute(parseInt(e.target.value) || 0)}
-            style={{
-              width: 80,
-              padding: 8,
-              fontSize: 16,
-              textAlign: 'center',
-              backgroundColor: '#2d3748',
-              color: '#ffffff',
-              border: '1px solid #4a5568',
-              borderRadius: 4
-            }}
-          />
-        </div>
-      </div>
-    </ConfirmModal>
-  );
-};
-
 interface AlarmButtonProps {
   slot: number;
   hour: number;
   minute: number;
+  isSelected: boolean;
   onClick: () => void;
 }
 
-const AlarmButton = ({ hour, minute, onClick }: AlarmButtonProps) => {
+const AlarmButton = ({ hour, minute, isSelected, onClick }: AlarmButtonProps) => {
   const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+
+  const selectedStyles: React.CSSProperties = isSelected ? {
+    backgroundColor: '#4488ff',
+    border: '2px solid #88bbff',
+    boxShadow: '0 0 8px #4488ff'
+  } : {
+    backgroundColor: '#556677',
+    border: 0
+  };
 
   return (
     <Button
@@ -177,11 +113,10 @@ const AlarmButton = ({ hour, minute, onClick }: AlarmButtonProps) => {
         fontSize: 14,
         padding: '6px 12px',
         borderRadius: 6,
-        backgroundColor: '#556677',
         color: '#ffffff',
         minWidth: '65px',
         textAlign: 'center',
-        border: 0
+        ...selectedStyles
       }}
     >
       {timeStr}
@@ -194,6 +129,7 @@ const directoryPath = import.meta.url.substring(0, import.meta.url.lastIndexOf('
 function Content() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [timerMinutes, setTimerMinutes] = useState(5);
+  const [selectedAlarm, setSelectedAlarm] = useState<'start' | 'end' | null>(null);
 
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [recentTimerSeconds, setRecentTimerSeconds] = useState<number[] | null>();
@@ -233,25 +169,50 @@ function Content() {
   }, []);
 
   const handleAlarmClick = (slot: number) => {
+    const alarmType = slot === 1 ? 'start' : 'end';
+    setSelectedAlarm(prev => prev === alarmType ? null : alarmType);
+  };
+
+  const adjustAlarmTime = (slot: number, deltaMinutes: number) => {
     const alarmKey = `alarm_${slot}`;
     const alarm = dailyAlarms[alarmKey];
 
-    const handleSave = async (hour: number, minute: number) => {
-      await setDailyAlarm(slot, hour, minute);
-      setDailyAlarms(prev => ({
-        ...prev,
-        [alarmKey]: { hour, minute, enabled: true }
-      }));
-    };
+    let totalMinutes = alarm.hour * 60 + alarm.minute + deltaMinutes;
 
-    showModal(
-      <TimePickerModal
-        currentHour={alarm.hour}
-        currentMinute={alarm.minute}
-        onSave={handleSave}
-        closeModal={() => {}}
-      />
-    );
+    // Handle underflow (wrap to previous day)
+    if (totalMinutes < 0) {
+      totalMinutes = 24 * 60 + totalMinutes;
+    }
+    // Handle overflow (wrap to next day)
+    if (totalMinutes >= 24 * 60) {
+      totalMinutes = totalMinutes % (24 * 60);
+    }
+
+    const newHour = Math.floor(totalMinutes / 60);
+    const newMinute = totalMinutes % 60;
+
+    setDailyAlarms(prev => ({
+      ...prev,
+      [alarmKey]: { ...prev[alarmKey], hour: newHour, minute: newMinute }
+    }));
+
+    setDailyAlarm(slot, newHour, newMinute);
+  };
+
+  const handlePlusClick = (minutes: number) => {
+    if (selectedAlarm) {
+      adjustAlarmTime(selectedAlarm === 'start' ? 1 : 2, minutes);
+    } else {
+      setTimerMinutes(prev => prev + minutes);
+    }
+  };
+
+  const handleMinusClick = (minutes: number) => {
+    if (selectedAlarm) {
+      adjustAlarmTime(selectedAlarm === 'start' ? 1 : 2, -minutes);
+    } else {
+      setTimerMinutes(prev => Math.max(5, prev - minutes));
+    }
   };
 
   const loadDailyAlarms = async () => {
@@ -273,13 +234,13 @@ function Content() {
         {secondsRemaining <= 0 ? (
           <PanelSectionRow>
             <Focusable preferredFocus flow-children="row" style={{ display: 'flex', flex: '1 1 auto', justifyContent: 'center', flexDirection: 'row', gap: 8 }}>
-              <MinutesButton focusable type='positive' onClick={() => setTimerMinutes(prev => prev + 5)}>
+              <MinutesButton focusable type='positive' onClick={() => handlePlusClick(5)}>
                 <FaPlus size={8} /><span>5</span>
               </MinutesButton>
-              <MinutesButton focusable type='positive' onClick={() => setTimerMinutes(prev => prev + 10)}>
+              <MinutesButton focusable type='positive' onClick={() => handlePlusClick(10)}>
                 <FaPlus size={8} /><span>10</span>
               </MinutesButton>
-              <MinutesButton focusable type='positive' onClick={() => setTimerMinutes(prev => prev + 30)}>
+              <MinutesButton focusable type='positive' onClick={() => handlePlusClick(30)}>
                 <FaPlus size={8} /><span>30</span>
               </MinutesButton>
             </Focusable>
@@ -298,6 +259,7 @@ function Content() {
                     slot={idx + 1}
                     hour={alarm.hour}
                     minute={alarm.minute}
+                    isSelected={selectedAlarm === (idx === 0 ? 'start' : 'end')}
                     onClick={() => handleAlarmClick(idx + 1)}
                   />
                 </div>
@@ -322,13 +284,13 @@ function Content() {
         {secondsRemaining <= 0 ? (
           <PanelSectionRow>
             <Focusable flow-children="row" style={{ display: 'flex', paddingBottom: 16, flex: '1 1 auto', justifyContent: 'center', flexDirection: 'row', gap: 8 }}>
-              <MinutesButton focusable type='negative' disabled={timerMinutes <= 5} onClick={() => setTimerMinutes(prev => prev - 5)}>
+              <MinutesButton focusable type='negative' disabled={!selectedAlarm && timerMinutes <= 5} onClick={() => handleMinusClick(5)}>
                 <FaMinus size={8} /><span>5</span>
               </MinutesButton>
-              <MinutesButton focusable type='negative' disabled={timerMinutes <= 10} onClick={() => setTimerMinutes(prev => prev - 10)}>
+              <MinutesButton focusable type='negative' disabled={!selectedAlarm && timerMinutes <= 10} onClick={() => handleMinusClick(10)}>
                 <FaMinus size={8} /><span>10</span>
               </MinutesButton>
-              <MinutesButton focusable type='negative' disabled={timerMinutes <= 30} onClick={() => setTimerMinutes(prev => prev - 30)}>
+              <MinutesButton focusable type='negative' disabled={!selectedAlarm && timerMinutes <= 30} onClick={() => handleMinusClick(30)}>
                 <FaMinus size={8} /><span>30</span>
               </MinutesButton>
             </Focusable>
