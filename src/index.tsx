@@ -101,7 +101,6 @@ const TimePickerModal = ({ currentHour, currentMinute, onSave, closeModal }: Tim
     const validHour = Math.max(0, Math.min(23, hour));
     const validMinute = Math.max(0, Math.min(59, minute));
     await onSave(validHour, validMinute);
-    closeModal();
   };
 
   return (
@@ -204,10 +203,6 @@ function Content() {
     alarm_2: {hour: 22, minute: 0, enabled: true},
     alarm_3: {hour: 23, minute: 0, enabled: true}
   });
-  const [timePickerOpen, setTimePickerOpen] = useState<{open: boolean, slot: number, hour: number, minute: number}>({
-    open: false, slot: 1, hour: 21, minute: 0
-  });
-
   useEffect(() => {
     const handleRefreshRecents = (recents: number[]) => {
       setRecentTimerSeconds(recents);
@@ -240,23 +235,23 @@ function Content() {
   const handleAlarmClick = (slot: number) => {
     const alarmKey = `alarm_${slot}`;
     const alarm = dailyAlarms[alarmKey];
-    setTimePickerOpen({
-      open: true,
-      slot,
-      hour: alarm.hour,
-      minute: alarm.minute
-    });
-  };
 
-  const handleAlarmSave = async (hour: number, minute: number) => {
-    await setDailyAlarm(timePickerOpen.slot, hour, minute);
+    const handleSave = async (hour: number, minute: number) => {
+      await setDailyAlarm(slot, hour, minute);
+      setDailyAlarms(prev => ({
+        ...prev,
+        [alarmKey]: { hour, minute, enabled: true }
+      }));
+    };
 
-    // Update local state
-    const alarmKey = `alarm_${timePickerOpen.slot}`;
-    setDailyAlarms(prev => ({
-      ...prev,
-      [alarmKey]: { hour, minute, enabled: true }
-    }));
+    showModal(
+      <TimePickerModal
+        currentHour={alarm.hour}
+        currentMinute={alarm.minute}
+        onSave={handleSave}
+        closeModal={() => {}}
+      />
+    );
   };
 
   const loadDailyAlarms = async () => {
@@ -372,14 +367,6 @@ function Content() {
         </PanelSectionRow>
       </PanelSection>
 
-      {timePickerOpen.open && (
-        <TimePickerModal
-          currentHour={timePickerOpen.hour}
-          currentMinute={timePickerOpen.minute}
-          onSave={handleAlarmSave}
-          closeModal={() => setTimePickerOpen({ ...timePickerOpen, open: false })}
-        />
-      )}
     </div>
   );
 };
