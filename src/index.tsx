@@ -88,7 +88,7 @@ const MinutesButton = ({ children, type, ...props }: MinutesButtonProps) => {
 interface TimePickerModalProps {
   currentHour: number;
   currentMinute: number;
-  onSave: (hour: number, minute: number) => void;
+  onSave: (hour: number, minute: number) => Promise<void>;
   closeModal: () => void;
 }
 
@@ -96,11 +96,11 @@ const TimePickerModal = ({ currentHour, currentMinute, onSave, closeModal }: Tim
   const [hour, setHour] = useState(currentHour);
   const [minute, setMinute] = useState(currentMinute);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     // Validate hour and minute ranges
     const validHour = Math.max(0, Math.min(23, hour));
     const validMinute = Math.max(0, Math.min(59, minute));
-    onSave(validHour, validMinute);
+    await onSave(validHour, validMinute);
     closeModal();
   };
 
