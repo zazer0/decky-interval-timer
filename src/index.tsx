@@ -345,14 +345,50 @@ export default definePlugin(() => {
         body: "Your timer has finished."
       })
     } else {
-      showModal(<ConfirmModal 
+      const modalResult = showModal(<ConfirmModal
           children={<Alarm />}
-          strTitle={message} 
-          strDescription="Your timer has finished. You can either suspend now, or ignore the alert." 
+          strTitle={message}
+          strDescription="Your timer has finished. You can either suspend now, or ignore the alert."
+          strOKButtonText="Suspend Now"
+          strCancelButtonText="(3s)"
+          bCancelDisabled={true}
+          onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
+          onCancel={() => modalResult.Close()}
+      />);
+
+      // Countdown: update modal at 1s, 2s, 3s
+      setTimeout(() => modalResult.Update(<ConfirmModal
+          children={<Alarm />}
+          strTitle={message}
+          strDescription="Your timer has finished. You can either suspend now, or ignore the alert."
+          strOKButtonText="Suspend Now"
+          strCancelButtonText="(2s)"
+          bCancelDisabled={true}
+          onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
+          onCancel={() => modalResult.Close()}
+      />), 1000);
+
+      setTimeout(() => modalResult.Update(<ConfirmModal
+          children={<Alarm />}
+          strTitle={message}
+          strDescription="Your timer has finished. You can either suspend now, or ignore the alert."
+          strOKButtonText="Suspend Now"
+          strCancelButtonText="(1s)"
+          bCancelDisabled={true}
+          onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
+          onCancel={() => modalResult.Close()}
+      />), 2000);
+
+      setTimeout(() => modalResult.Update(<ConfirmModal
+          children={<Alarm />}
+          strTitle={message}
+          strDescription="Your timer has finished. You can either suspend now, or ignore the alert."
           strOKButtonText="Suspend Now"
           strCancelButtonText="Ignore"
-          onOK={async () => await SteamUtils.suspend()}
-      />);
+          bCancelDisabled={false}
+          onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
+          onCancel={() => modalResult.Close()}
+      />), 3000);
     }
   }
 
