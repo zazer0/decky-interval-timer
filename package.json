@@ -1,7 +1,7 @@
 {
-  "name": "simple-timer",
+  "name": "decky-interval-timer",
   "version": "1.0.3",
-  "description": "Create a simple timer that allows you to be notified when your session should end.",
+  "description": "Create an interval timer that reminds you every 5 mins of time passing.",
   "type": "module",
   "scripts": {
     "build": "rollup -c && mkdir -p dist && cp ./assets/alarm.mp3 ./dist/",
@@ -10,7 +10,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/decktools-xyz/simple-timer.git"
+    "url": "git+https://github.com/zazer0/decky-simpletimer.git"
   },
   "keywords": [
     "decky",
@@ -19,12 +19,12 @@
     "steam-deck",
     "deck"
   ],
-  "author": "Joseph Clover <clover@hey.com>",
+  "author": "Zac Saber <zazer.unsw@gmail.com>",
   "license": "BSD-3-Clause",
   "bugs": {
-    "url": "https://github.com/decktools-xyz/simple-timer/issues"
+    "url": "https://github.com/zazer0/decky-simpletimer/issues"
   },
-  "homepage": "https://github.com/decktools-xyz/simple-timer#readme",
+  "homepage": "https://github.com/zazer0/decky-simpletimer#readme",
   "devDependencies": {
     "@decky/rollup": "^1.0.2",
     "@decky/ui": "^4.11.1",
