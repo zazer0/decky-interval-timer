@@ -353,7 +353,7 @@ export default definePlugin(() => {
           strCancelButtonText="(3s)"
           bCancelDisabled={true}
           onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
-          onCancel={() => modalResult.Close()}
+          onCancel={() => {}}
       />);
 
       // Countdown: update modal at 1s, 2s, 3s
@@ -365,7 +365,7 @@ export default definePlugin(() => {
           strCancelButtonText="(2s)"
           bCancelDisabled={true}
           onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
-          onCancel={() => modalResult.Close()}
+          onCancel={() => {}}
       />), 1000);
 
       setTimeout(() => modalResult.Update(<ConfirmModal
@@ -376,7 +376,7 @@ export default definePlugin(() => {
           strCancelButtonText="(1s)"
           bCancelDisabled={true}
           onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
-          onCancel={() => modalResult.Close()}
+          onCancel={() => {}}
       />), 2000);
 
       setTimeout(() => modalResult.Update(<ConfirmModal
