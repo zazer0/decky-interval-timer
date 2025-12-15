@@ -1,6 +1,6 @@
 {
   "name": "decky-interval-timer",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Create an interval timer that reminds you every 5 mins of time passing.",
   "type": "module",
   "scripts": {
