@@ -236,7 +236,8 @@ class Plugin:
 
         await self.settings_setSetting(settings_key_daily_alarms, alarms)
         await self.settings_commit()
-        decky.logger.info(f"Set daily alarm {slot} to {hour:02d}:{minute:02d}")
+        slot_names = {1: "START", 2: "MID", 3: "FINISH"}
+        decky.logger.info(f"Set daily alarm {slot_names.get(slot, slot)} to {hour:02d}:{minute:02d}")
 
     async def get_daily_alarms(self):
         """Get all daily alarm configurations"""
