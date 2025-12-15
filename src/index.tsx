@@ -129,7 +129,7 @@ const directoryPath = import.meta.url.substring(0, import.meta.url.lastIndexOf('
 function Content() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [timerMinutes, setTimerMinutes] = useState(5);
-  const [selectedAlarm, setSelectedAlarm] = useState<'start' | 'end' | null>(null);
+  const [selectedAlarm, setSelectedAlarm] = useState<'start' | 'mid' | 'finish' | null>(null);
 
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [recentTimerSeconds, setRecentTimerSeconds] = useState<number[] | null>();
@@ -169,7 +169,7 @@ function Content() {
   }, []);
 
   const handleAlarmClick = (slot: number) => {
-    const alarmType = slot === 1 ? 'start' : 'end';
+    const alarmType = slot === 1 ? 'start' : slot === 2 ? 'mid' : 'finish';
     setSelectedAlarm(prev => prev === alarmType ? null : alarmType);
   };
 
@@ -201,7 +201,8 @@ function Content() {
 
   const handlePlusClick = (minutes: number) => {
     if (selectedAlarm) {
-      adjustAlarmTime(selectedAlarm === 'start' ? 1 : 2, minutes);
+      const slot = selectedAlarm === 'start' ? 1 : selectedAlarm === 'mid' ? 2 : 3;
+      adjustAlarmTime(slot, minutes);
     } else {
       setTimerMinutes(prev => prev + minutes);
     }
@@ -209,7 +210,8 @@ function Content() {
 
   const handleMinusClick = (minutes: number) => {
     if (selectedAlarm) {
-      adjustAlarmTime(selectedAlarm === 'start' ? 1 : 2, -minutes);
+      const slot = selectedAlarm === 'start' ? 1 : selectedAlarm === 'mid' ? 2 : 3;
+      adjustAlarmTime(slot, -minutes);
     } else {
       setTimerMinutes(prev => Math.max(5, prev - minutes));
     }
@@ -250,20 +252,24 @@ function Content() {
         {secondsRemaining <= 0 ? (
           <PanelSectionRow>
             <Focusable flow-children="row" style={{ display: 'flex', justifyContent: 'center', gap: 16, paddingBottom: 8 }}>
-              {Object.entries(dailyAlarms).slice(0, 2).map(([key, alarm], idx) => (
-                <div key={key} style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 12, marginBottom: 4, color: '#aaaaaa' }}>
-                    {idx === 0 ? 'START' : 'END'}
+              {Object.entries(dailyAlarms).slice(0, 3).map(([key, alarm], idx) => {
+                const labels = ['START', 'MID', 'FINISH'];
+                const alarmTypes: Array<'start' | 'mid' | 'finish'> = ['start', 'mid', 'finish'];
+                return (
+                  <div key={key} style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 12, marginBottom: 4, color: '#aaaaaa' }}>
+                      {labels[idx]}
+                    </div>
+                    <AlarmButton
+                      slot={idx + 1}
+                      hour={alarm.hour}
+                      minute={alarm.minute}
+                      isSelected={selectedAlarm === alarmTypes[idx]}
+                      onClick={() => handleAlarmClick(idx + 1)}
+                    />
                   </div>
-                  <AlarmButton
-                    slot={idx + 1}
-                    hour={alarm.hour}
-                    minute={alarm.minute}
-                    isSelected={selectedAlarm === (idx === 0 ? 'start' : 'end')}
-                    onClick={() => handleAlarmClick(idx + 1)}
-                  />
-                </div>
-              ))}
+                );
+              })}
             </Focusable>
           </PanelSectionRow>
         ) : null}
