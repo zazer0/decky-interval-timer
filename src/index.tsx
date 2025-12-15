@@ -385,7 +385,7 @@ export default definePlugin(() => {
           strDescription="Your timer has finished. You can either suspend now, or ignore the alert."
           strOKButtonText="Suspend Now"
           strCancelButtonText="Ignore"
-          bCancelDisabled={false}
+          bCancelDisabled={true}
           onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
           onCancel={() => modalResult.Close()}
       />), 3000);
