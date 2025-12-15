@@ -3,7 +3,7 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-Simple Timer is a Decky Plugin for Steam Deck that allows users to set timers that interrupt their gaming sessions with alerts. The plugin uses a TypeScript/React frontend with a Python backend.
+Decky Interval Timer is a Decky Plugin for Steam Deck that shows popup reminders every 5 minutes during a configurable time window. Users can also set one-off manual timers. The plugin uses a TypeScript/React frontend with a Python backend.
 
 ## Build and Development Commands
 
@@ -35,12 +35,14 @@ pnpm run watch     # Watch for changes and rebuild automatically
 ### Frontend-Backend Communication
 The plugin uses callable functions and event listeners:
 - **Callables** (Frontend → Backend):
-  - `start_timer(seconds)` - Start a timer
+  - `start_timer(seconds)` - Start a one-off timer
   - `cancel_timer()` - Cancel active timer
   - `set_subtle_mode(subtle)` - Toggle subtle mode
   - `load_recents()` - Load recent timers
   - `load_remaining_seconds()` - Get timer status
   - `load_subtle_mode()` - Get subtle mode setting
+  - `set_daily_alarm(slot, hour, minute)` - Set interval start/end time
+  - `get_daily_alarms()` - Get interval alarm configurations
 
 - **Events** (Backend → Frontend):
   - `simple_timer_event` - Timer completion notification
@@ -49,10 +51,11 @@ The plugin uses callable functions and event listeners:
   - `simple_timer_subtle` - Subtle mode state update
 
 ### Key Features
-1. **Timer Persistence**: Timers survive plugin reload using settings storage
-2. **Subtle Mode**: Toggle between fullscreen modal or toast notifications
-3. **Recent Timers**: Stores last 5 timer durations for quick restart
-4. **Suspend Integration**: Can automatically suspend Steam Deck when timer expires
+1. **Interval Reminders**: Background loop triggers popup every 5 minutes during configured start/end time window (alarm_1 = start, alarm_2 = end)
+2. **One-off Timers**: Manual timers that persist across plugin reload using settings storage
+3. **Subtle Mode**: Toggle between fullscreen modal or toast notifications
+4. **Recent Timers**: Stores last 5 timer durations for quick restart
+5. **Suspend Integration**: Can automatically suspend Steam Deck when timer expires
 
 ## File Structure Patterns
 - TypeScript components use ESNext modules with `@decky/*` imports
