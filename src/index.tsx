@@ -340,65 +340,60 @@ function Content() {
 };
 
 export default definePlugin(() => {
-  const handleTimerComplete = (message:string, subtle: boolean) => {
+  const handleTimerComplete = (message: string, subtle: boolean) => {
     const Alarm = () => <audio src={directoryPath + 'alarm.mp3'} autoPlay />;
-    
+
     (window.document.getElementById('alarm-sound') as HTMLAudioElement)?.play();
 
     if (subtle) {
       toaster.toast({
         title: message,
         body: "Your timer has finished."
-      })
+      });
     } else {
-      const modalResult = showModal(<ConfirmModal
-          children={<Alarm />}
-          strTitle={message}
-          strDescription="Your timer has finished."
-          strOKButtonText="(3s)"
-          bOKDisabled={true}
-          strCancelButtonText="Ignore"
-          bCancelDisabled={true}
-          onOK={() => {}}
-          onCancel={() => {}}
-      />);
+      let countdownComplete = false;
+      let isTransitioning = false;  // Prevent re-show during planned transitions
 
-      // Countdown: update modal at 1s, 2s, 3s
-      setTimeout(() => modalResult.Update(<ConfirmModal
-          children={<Alarm />}
-          strTitle={message}
-          strDescription="Your timer has finished."
-          strOKButtonText="(2s)"
-          bOKDisabled={true}
-          strCancelButtonText="Ignore"
-          bCancelDisabled={true}
-          onOK={() => {}}
-          onCancel={() => {}}
-      />), 1000);
+      const showTimerModal = (secondsLeft: number) => {
+        const isCountdownDone = secondsLeft <= 0;
 
-      setTimeout(() => modalResult.Update(<ConfirmModal
-          children={<Alarm />}
-          strTitle={message}
-          strDescription="Your timer has finished."
-          strOKButtonText="(1s)"
-          bOKDisabled={true}
-          strCancelButtonText="Ignore"
-          bCancelDisabled={true}
-          onOK={() => {}}
-          onCancel={() => {}}
-      />), 2000);
+        const modalResult = showModal(
+          <ConfirmModal
+            children={<Alarm />}
+            strTitle={message}
+            strDescription="Your timer has finished."
+            strOKButtonText={isCountdownDone ? "Suspend Now" : `(${secondsLeft}s)`}
+            bOKDisabled={!isCountdownDone}
+            strCancelButtonText="Ignore"
+            bCancelDisabled={true}
+            onOK={isCountdownDone ? async () => {
+              countdownComplete = true;
+              await SteamUtils.suspend();
+              modalResult.Close();
+            } : () => {}}
+            onCancel={() => {}}
+          />,
+          undefined,
+          {
+            fnOnClose: () => {
+              if (!countdownComplete && !isTransitioning) {
+                setTimeout(() => showTimerModal(secondsLeft), 50);
+              }
+            }
+          }
+        );
 
-      setTimeout(() => modalResult.Update(<ConfirmModal
-          children={<Alarm />}
-          strTitle={message}
-          strDescription="Your timer has finished."
-          strOKButtonText="Suspend Now"
-          bOKDisabled={false}
-          strCancelButtonText="Ignore"
-          bCancelDisabled={true}
-          onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
-          onCancel={() => {}}
-      />), 3000);
+        if (!isCountdownDone) {
+          setTimeout(() => {
+            isTransitioning = true;
+            modalResult.Close();
+            isTransitioning = false;
+            showTimerModal(secondsLeft - 1);
+          }, 1000);
+        }
+      };
+
+      showTimerModal(3);
     }
   }
 
