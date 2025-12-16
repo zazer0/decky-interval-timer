@@ -354,11 +354,12 @@ export default definePlugin(() => {
       const modalResult = showModal(<ConfirmModal
           children={<Alarm />}
           strTitle={message}
-          strDescription="Your timer has finished. You can either suspend now, or ignore the alert."
-          strOKButtonText="Suspend Now"
-          strCancelButtonText="(3s)"
+          strDescription="Your timer has finished."
+          strOKButtonText="(3s)"
+          bOKDisabled={true}
+          strCancelButtonText="Ignore"
           bCancelDisabled={true}
-          onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
+          onOK={() => {}}
           onCancel={() => {}}
       />);
 
@@ -366,34 +367,37 @@ export default definePlugin(() => {
       setTimeout(() => modalResult.Update(<ConfirmModal
           children={<Alarm />}
           strTitle={message}
-          strDescription="Your timer has finished. You can either suspend now, or ignore the alert."
-          strOKButtonText="Suspend Now"
-          strCancelButtonText="(2s)"
+          strDescription="Your timer has finished."
+          strOKButtonText="(2s)"
+          bOKDisabled={true}
+          strCancelButtonText="Ignore"
           bCancelDisabled={true}
-          onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
+          onOK={() => {}}
           onCancel={() => {}}
       />), 1000);
 
       setTimeout(() => modalResult.Update(<ConfirmModal
           children={<Alarm />}
           strTitle={message}
-          strDescription="Your timer has finished. You can either suspend now, or ignore the alert."
-          strOKButtonText="Suspend Now"
-          strCancelButtonText="(1s)"
+          strDescription="Your timer has finished."
+          strOKButtonText="(1s)"
+          bOKDisabled={true}
+          strCancelButtonText="Ignore"
           bCancelDisabled={true}
-          onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
+          onOK={() => {}}
           onCancel={() => {}}
       />), 2000);
 
       setTimeout(() => modalResult.Update(<ConfirmModal
           children={<Alarm />}
           strTitle={message}
-          strDescription="Your timer has finished. You can either suspend now, or ignore the alert."
+          strDescription="Your timer has finished."
           strOKButtonText="Suspend Now"
+          bOKDisabled={false}
           strCancelButtonText="Ignore"
-          bCancelDisabled={false}
+          bCancelDisabled={true}
           onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
-          onCancel={() => modalResult.Close()}
+          onCancel={() => {}}
       />), 3000);
     }
   }
