@@ -236,7 +236,8 @@ class Plugin:
 
         await self.settings_setSetting(settings_key_daily_alarms, alarms)
         await self.settings_commit()
-        decky.logger.info(f"Set daily alarm {slot} to {hour:02d}:{minute:02d}")
+        slot_names = {1: "START", 2: "MID", 3: "FINISH"}
+        decky.logger.info(f"Set daily alarm {slot_names.get(slot, slot)} to {hour:02d}:{minute:02d}")
 
     async def get_daily_alarms(self):
         """Get all daily alarm configurations"""
@@ -244,9 +245,9 @@ class Plugin:
 
         # Return default alarms if none set
         defaults = {
-            "alarm_1": {"hour": 22, "minute": 55, "enabled": True},
-            "alarm_2": {"hour": 22, "minute": 57, "enabled": True},
-            "alarm_3": {"hour": 22, "minute": 59, "enabled": True}
+            "alarm_1": {"hour": 21, "minute": 0, "enabled": True},   # START
+            "alarm_2": {"hour": 22, "minute": 0, "enabled": True},   # MID
+            "alarm_3": {"hour": 23, "minute": 0, "enabled": True}    # FINISH
         }
 
         # Merge with defaults for any missing alarms
@@ -275,39 +276,65 @@ class Plugin:
                 decky.logger.error(f"Error in daily alarm checker: {e}")
 
     async def check_daily_alarms(self):
-        """Check if we should trigger an interval reminder now"""
+        """Check if we should trigger an interval reminder now.
+
+        Interval behavior:
+        - START to MID (inclusive): 5-minute intervals
+        - After MID to FINISH: 2-minute intervals
+        """
         now = datetime.now()
         current_hour = now.hour
         current_minute = now.minute
         today = date.today().isoformat()
 
-        # Only trigger on 5-minute marks
-        if current_minute % 5 != 0:
-            return
-
         alarms = await self.settings_getSetting(settings_key_daily_alarms, {})
 
-        # Use alarm_1 as START, alarm_2 as END
+        # Use alarm_1 as START, alarm_2 as MID, alarm_3 as FINISH
         start = alarms.get("alarm_1", {"hour": 21, "minute": 0})
-        end = alarms.get("alarm_2", {"hour": 23, "minute": 0})
+        mid = alarms.get("alarm_2", {"hour": 22, "minute": 0})
+        finish = alarms.get("alarm_3", {"hour": 23, "minute": 0})
 
-        # Check if current time is within interval
+        # Calculate minutes from midnight
         current_mins = current_hour * 60 + current_minute
         start_mins = start["hour"] * 60 + start["minute"]
-        end_mins = end["hour"] * 60 + end["minute"]
+        mid_mins = mid["hour"] * 60 + mid["minute"]
+        finish_mins = finish["hour"] * 60 + finish["minute"]
 
-        in_interval = False
-        if start_mins <= end_mins:
-            # Normal: 21:00 → 23:00
-            in_interval = start_mins <= current_mins <= end_mins
+        # Determine which phase we're in
+        interval_minutes = None
+        in_phase_1 = False  # START to MID inclusive (5-minute intervals)
+        in_phase_2 = False  # After MID to FINISH (2-minute intervals)
+
+        # Check Phase 1: START to MID (inclusive)
+        if start_mins <= mid_mins:
+            # Normal: e.g., 21:00 -> 22:00
+            in_phase_1 = start_mins <= current_mins <= mid_mins
         else:
-            # Midnight crossing: 22:00 → 02:00
-            in_interval = current_mins >= start_mins or current_mins <= end_mins
+            # Midnight crossing: e.g., 23:00 -> 01:00
+            in_phase_1 = current_mins >= start_mins or current_mins <= mid_mins
 
-        if not in_interval:
+        # Check Phase 2: After MID to FINISH (MID already triggered in Phase 1)
+        if mid_mins < finish_mins:
+            # Normal: e.g., 22:00 -> 23:00
+            in_phase_2 = mid_mins < current_mins <= finish_mins
+        else:
+            # Midnight crossing: e.g., 23:30 -> 01:00
+            in_phase_2 = current_mins > mid_mins or current_mins <= finish_mins
+
+        # Determine interval based on phase
+        if in_phase_1:
+            interval_minutes = 5
+        elif in_phase_2:
+            interval_minutes = 2
+        else:
+            # Not in any active interval
             return
 
-        # Check if already triggered this minute
+        # Check if current minute aligns with interval
+        if current_minute % interval_minutes != 0:
+            return
+
+        # Check if already triggered this minute (deduplication)
         trigger_key = f"{today}-{current_hour:02d}:{current_minute:02d}"
         last_triggered = alarms.get("last_triggered", "")
 
@@ -319,6 +346,7 @@ class Plugin:
         await self.settings_setSetting(settings_key_daily_alarms, alarms)
         await self.settings_commit()
 
+        phase_label = "Phase 1 (5min)" if in_phase_1 else "Phase 2 (2min)"
         subtle = await self.settings_getSetting(settings_key_subtle_mode, False)
         await decky.emit("simple_timer_event", f"Reminder ({current_hour:02d}:{current_minute:02d})", subtle)
-        decky.logger.info(f"Interval triggered at {current_hour:02d}:{current_minute:02d}")
+        decky.logger.info(f"Interval triggered at {current_hour:02d}:{current_minute:02d} ({phase_label})")
