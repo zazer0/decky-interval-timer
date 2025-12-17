@@ -55,7 +55,7 @@ const loadRecents = callable<[void], void>("load_recents");
 const loadSecondsRemaining = callable<[void], void>("load_remaining_seconds");
 const loadSubtleMode = callable<[void], boolean>("load_subtle_mode");
 const setDailyAlarm = callable<[slot: number, hour: number, minute: number], void>("set_daily_alarm");
-const getDailyAlarms = callable<[], Record<string, {hour: number, minute: number, enabled: boolean}>>("get_daily_alarms");
+const getDailyAlarms = callable<[], Record<string, { hour: number, minute: number, enabled: boolean }>>("get_daily_alarms");
 
 type MinutesButtonProps = PropsWithChildren<ButtonProps & { type: 'positive' | 'negative' }>;
 
@@ -134,10 +134,10 @@ function Content() {
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [recentTimerSeconds, setRecentTimerSeconds] = useState<number[] | null>();
   const [subtleMode, setSubtleMode] = useState<boolean>(false);
-  const [dailyAlarms, setDailyAlarms] = useState<Record<string, {hour: number, minute: number, enabled: boolean}>>({
-    alarm_1: {hour: 21, minute: 0, enabled: true},
-    alarm_2: {hour: 22, minute: 0, enabled: true},
-    alarm_3: {hour: 23, minute: 0, enabled: true}
+  const [dailyAlarms, setDailyAlarms] = useState<Record<string, { hour: number, minute: number, enabled: boolean }>>({
+    alarm_1: { hour: 21, minute: 0, enabled: true },
+    alarm_2: { hour: 22, minute: 0, enabled: true },
+    alarm_3: { hour: 23, minute: 0, enabled: true }
   });
   useEffect(() => {
     const handleRefreshRecents = (recents: number[]) => {
@@ -279,7 +279,7 @@ function Content() {
             <>
               <ButtonItem onClick={async () => await cancelTimer()} bottomSeparator="none" layout="below">
                 Cancel Timer<br />
-                { secondsRemaining < 60 ? `Less than a minute` : `< ${Math.ceil(secondsRemaining / 60)} minute${secondsRemaining > 60 ? 's' : ''}` }
+                {secondsRemaining < 60 ? `Less than a minute` : `< ${Math.ceil(secondsRemaining / 60)} minute${secondsRemaining > 60 ? 's' : ''}`}
               </ButtonItem>
             </>
           ) : (
@@ -323,7 +323,7 @@ function Content() {
             <p>You have no recent timers. You can quickly restart your last 5 timers here.</p>
           ) : (
             recentTimerSeconds?.map((seconds, idx) => (
-              <ButtonItem highlightOnFocus={secondsRemaining === 0} disabled={secondsRemaining > 0} layout="below" key={`${idx}-seconds`} onClick={async () => { containerRef.current?.scrollTo(0,0); startTimer(seconds); }}>Start {seconds / 60} Minute Timer</ButtonItem>
+              <ButtonItem highlightOnFocus={secondsRemaining === 0} disabled={secondsRemaining > 0} layout="below" key={`${idx}-seconds`} onClick={async () => { containerRef.current?.scrollTo(0, 0); startTimer(seconds); }}>Start {seconds / 60} Minute Timer</ButtonItem>
             ))
           )}
         </PanelSectionRow>
@@ -351,6 +351,9 @@ export default definePlugin(() => {
         body: "Your timer has finished."
       });
     } else {
+      // Pause the game first by opening Steam Library Menu
+      SteamUtils.pauseGame();
+
       let countdownComplete = false;
       let isTransitioning = false;  // Prevent re-show during planned transitions
 
@@ -370,8 +373,8 @@ export default definePlugin(() => {
               countdownComplete = true;
               await SteamUtils.suspend();
               modalResult.Close();
-            } : () => {}}
-            onCancel={() => {}}
+            } : () => { }}
+            onCancel={() => { }}
           />,
           undefined,
           {
@@ -393,7 +396,10 @@ export default definePlugin(() => {
         }
       };
 
-      showTimerModal(3);
+      // Small delay to let pause take effect, then show modal
+      setTimeout(() => {
+        showTimerModal(3);
+      }, 150);
     }
   }
 

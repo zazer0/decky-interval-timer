@@ -1,4 +1,4 @@
-import { findModuleChild, Module } from "@decky/ui";
+import { findModuleChild, Module, Navigation } from "@decky/ui";
 
 const findModule = (property: string) => {
   return findModuleChild((m: Module) => {
@@ -13,13 +13,17 @@ const findModule = (property: string) => {
       }
     }
   });
-}
+};
 
-const SleepParent = findModule("InitiateSleep")
-export const NavSoundMap = findModule("ToastMisc")
+const SleepParent = findModule("InitiateSleep");
+export const NavSoundMap = findModule("ToastMisc");
 
 export class SteamUtils {
   static async suspend() {
     SleepParent.OnSuspendRequest();
+  }
+
+  static pauseGame(): void {
+    Navigation.NavigateToLibraryTab();
   }
 }
