@@ -1,4 +1,5 @@
 import { findModuleChild, Module, Navigation } from "@decky/ui";
+import { EHIDKeyboardKey } from "@decky/ui/dist/globals/steam-client/Input";
 
 const findModule = (property: string) => {
   return findModuleChild((m: Module) => {
@@ -24,6 +25,13 @@ export class SteamUtils {
   }
 
   static pauseGame(): void {
-    Navigation.NavigateToLibraryTab();
+    // Send ESC key press (pauses many games)
+    SteamClient.Input.ControllerKeyboardSetKeyState(EHIDKeyboardKey.Escape, true);
+    SteamClient.Input.ControllerKeyboardSetKeyState(EHIDKeyboardKey.Escape, false);
+
+    // Delay to ensure ESC is processed before navigation
+    setTimeout(() => {
+      Navigation.NavigateToLibraryTab();
+    }, 150);
   }
 }
