@@ -55,7 +55,7 @@ const loadRecents = callable<[void], void>("load_recents");
 const loadSecondsRemaining = callable<[void], void>("load_remaining_seconds");
 const loadSubtleMode = callable<[void], boolean>("load_subtle_mode");
 const setDailyAlarm = callable<[slot: number, hour: number, minute: number], void>("set_daily_alarm");
-const getDailyAlarms = callable<[], Record<string, {hour: number, minute: number, enabled: boolean}>>("get_daily_alarms");
+const getDailyAlarms = callable<[], Record<string, { hour: number, minute: number, enabled: boolean }>>("get_daily_alarms");
 
 type MinutesButtonProps = PropsWithChildren<ButtonProps & { type: 'positive' | 'negative' }>;
 
@@ -134,10 +134,10 @@ function Content() {
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [recentTimerSeconds, setRecentTimerSeconds] = useState<number[] | null>();
   const [subtleMode, setSubtleMode] = useState<boolean>(false);
-  const [dailyAlarms, setDailyAlarms] = useState<Record<string, {hour: number, minute: number, enabled: boolean}>>({
-    alarm_1: {hour: 21, minute: 0, enabled: true},
-    alarm_2: {hour: 22, minute: 0, enabled: true},
-    alarm_3: {hour: 23, minute: 0, enabled: true}
+  const [dailyAlarms, setDailyAlarms] = useState<Record<string, { hour: number, minute: number, enabled: boolean }>>({
+    alarm_1: { hour: 21, minute: 0, enabled: true },
+    alarm_2: { hour: 22, minute: 0, enabled: true },
+    alarm_3: { hour: 23, minute: 0, enabled: true }
   });
   useEffect(() => {
     const handleRefreshRecents = (recents: number[]) => {
@@ -279,7 +279,7 @@ function Content() {
             <>
               <ButtonItem onClick={async () => await cancelTimer()} bottomSeparator="none" layout="below">
                 Cancel Timer<br />
-                { secondsRemaining < 60 ? `Less than a minute` : `< ${Math.ceil(secondsRemaining / 60)} minute${secondsRemaining > 60 ? 's' : ''}` }
+                {secondsRemaining < 60 ? `Less than a minute` : `< ${Math.ceil(secondsRemaining / 60)} minute${secondsRemaining > 60 ? 's' : ''}`}
               </ButtonItem>
             </>
           ) : (
@@ -323,7 +323,7 @@ function Content() {
             <p>You have no recent timers. You can quickly restart your last 5 timers here.</p>
           ) : (
             recentTimerSeconds?.map((seconds, idx) => (
-              <ButtonItem highlightOnFocus={secondsRemaining === 0} disabled={secondsRemaining > 0} layout="below" key={`${idx}-seconds`} onClick={async () => { containerRef.current?.scrollTo(0,0); startTimer(seconds); }}>Start {seconds / 60} Minute Timer</ButtonItem>
+              <ButtonItem highlightOnFocus={secondsRemaining === 0} disabled={secondsRemaining > 0} layout="below" key={`${idx}-seconds`} onClick={async () => { containerRef.current?.scrollTo(0, 0); startTimer(seconds); }}>Start {seconds / 60} Minute Timer</ButtonItem>
             ))
           )}
         </PanelSectionRow>
@@ -340,61 +340,66 @@ function Content() {
 };
 
 export default definePlugin(() => {
-  const handleTimerComplete = (message:string, subtle: boolean) => {
+  const handleTimerComplete = (message: string, subtle: boolean) => {
     const Alarm = () => <audio src={directoryPath + 'alarm.mp3'} autoPlay />;
-    
+
     (window.document.getElementById('alarm-sound') as HTMLAudioElement)?.play();
 
     if (subtle) {
       toaster.toast({
         title: message,
         body: "Your timer has finished."
-      })
+      });
     } else {
-      const modalResult = showModal(<ConfirmModal
-          children={<Alarm />}
-          strTitle={message}
-          strDescription="Your timer has finished. You can either suspend now, or ignore the alert."
-          strOKButtonText="Suspend Now"
-          strCancelButtonText="(3s)"
-          bCancelDisabled={true}
-          onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
-          onCancel={() => {}}
-      />);
+      // Pause the game first by opening Steam Library Menu
+      SteamUtils.pauseGame();
 
-      // Countdown: update modal at 1s, 2s, 3s
-      setTimeout(() => modalResult.Update(<ConfirmModal
-          children={<Alarm />}
-          strTitle={message}
-          strDescription="Your timer has finished. You can either suspend now, or ignore the alert."
-          strOKButtonText="Suspend Now"
-          strCancelButtonText="(2s)"
-          bCancelDisabled={true}
-          onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
-          onCancel={() => {}}
-      />), 1000);
+      let countdownComplete = false;
+      let isTransitioning = false;  // Prevent re-show during planned transitions
 
-      setTimeout(() => modalResult.Update(<ConfirmModal
-          children={<Alarm />}
-          strTitle={message}
-          strDescription="Your timer has finished. You can either suspend now, or ignore the alert."
-          strOKButtonText="Suspend Now"
-          strCancelButtonText="(1s)"
-          bCancelDisabled={true}
-          onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
-          onCancel={() => {}}
-      />), 2000);
+      const showTimerModal = (secondsLeft: number) => {
+        const isCountdownDone = secondsLeft <= 0;
 
-      setTimeout(() => modalResult.Update(<ConfirmModal
-          children={<Alarm />}
-          strTitle={message}
-          strDescription="Your timer has finished. You can either suspend now, or ignore the alert."
-          strOKButtonText="Suspend Now"
-          strCancelButtonText="Ignore"
-          bCancelDisabled={false}
-          onOK={async () => { await SteamUtils.suspend(); modalResult.Close(); }}
-          onCancel={() => modalResult.Close()}
-      />), 3000);
+        const modalResult = showModal(
+          <ConfirmModal
+            children={<Alarm />}
+            strTitle={message}
+            strDescription="Your timer has finished."
+            strOKButtonText={isCountdownDone ? "Suspend Now" : `(${secondsLeft}s)`}
+            bOKDisabled={!isCountdownDone}
+            strCancelButtonText="Ignore"
+            bCancelDisabled={true}
+            onOK={isCountdownDone ? async () => {
+              countdownComplete = true;
+              await SteamUtils.suspend();
+              modalResult.Close();
+            } : () => { }}
+            onCancel={() => { }}
+          />,
+          undefined,
+          {
+            fnOnClose: () => {
+              if (!countdownComplete && !isTransitioning) {
+                setTimeout(() => showTimerModal(secondsLeft), 50);
+              }
+            }
+          }
+        );
+
+        if (!isCountdownDone) {
+          setTimeout(() => {
+            isTransitioning = true;
+            modalResult.Close();
+            isTransitioning = false;
+            showTimerModal(secondsLeft - 1);
+          }, 1000);
+        }
+      };
+
+      // Small delay to let pause take effect, then show modal
+      setTimeout(() => {
+        showTimerModal(3);
+      }, 150);
     }
   }
 
