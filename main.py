@@ -279,7 +279,7 @@ class Plugin:
         """Check if we should trigger an interval reminder now.
 
         Interval behavior:
-        - START to MID (inclusive): 5-minute intervals
+        - START to MID (inclusive): 4-minute intervals
         - After MID to FINISH: 2-minute intervals
         """
         now = datetime.now()
@@ -302,7 +302,7 @@ class Plugin:
 
         # Determine which phase we're in
         interval_minutes = None
-        in_phase_1 = False  # START to MID inclusive (5-minute intervals)
+        in_phase_1 = False  # START to MID inclusive (4-minute intervals)
         in_phase_2 = False  # After MID to FINISH (2-minute intervals)
 
         # Check Phase 1: START to MID (inclusive)
@@ -323,7 +323,7 @@ class Plugin:
 
         # Determine interval based on phase
         if in_phase_1:
-            interval_minutes = 5
+            interval_minutes = 4
         elif in_phase_2:
             interval_minutes = 2
         else:
@@ -346,7 +346,7 @@ class Plugin:
         await self.settings_setSetting(settings_key_daily_alarms, alarms)
         await self.settings_commit()
 
-        phase_label = "Phase 1 (5min)" if in_phase_1 else "Phase 2 (2min)"
+        phase_label = "Phase 1 (4min)" if in_phase_1 else "Phase 2 (2min)"
         phase = 1 if in_phase_1 else 2
         subtle = await self.settings_getSetting(settings_key_subtle_mode, False)
         await decky.emit("simple_timer_event", f"Reminder ({current_hour:02d}:{current_minute:02d})", subtle, phase)
