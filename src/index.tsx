@@ -340,7 +340,7 @@ function Content() {
 };
 
 export default definePlugin(() => {
-  const handleTimerComplete = (message: string, subtle: boolean) => {
+  const handleTimerComplete = (message: string, subtle: boolean, phase: number | null) => {
     const Alarm = () => <audio src={directoryPath + 'alarm.mp3'} autoPlay />;
 
     (window.document.getElementById('alarm-sound') as HTMLAudioElement)?.play();
@@ -397,15 +397,17 @@ export default definePlugin(() => {
       };
 
       // Small delay to let pause take effect, then show modal
+      // Phase 2 gets 5-second countdown, others get 3 seconds
+      const countdown = phase === 2 ? 5 : 3;
       setTimeout(() => {
-        showTimerModal(3);
+        showTimerModal(countdown);
       }, 150);
     }
   }
 
   // Note: Daily alarms also use the simple_timer_event, so they are automatically
   // handled by the existing handleTimerComplete function in the plugin definition
-  addEventListener<[message: string, subtle: boolean]>("simple_timer_event", handleTimerComplete);
+  addEventListener<[message: string, subtle: boolean, phase: number | null]>("simple_timer_event", handleTimerComplete);
 
   return {
     name: "Simple Timer",

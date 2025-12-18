@@ -190,7 +190,7 @@ class Plugin:
         await decky.emit("simple_timer_seconds_updated", self.seconds_remaining)
 
         subtle = await self.settings_getSetting(settings_key_subtle_mode, False)
-        await decky.emit("simple_timer_event", "Your session has ended!", subtle)
+        await decky.emit("simple_timer_event", "Your session has ended!", subtle, None)
 
     async def cancel_timer(self):
         self.seconds_remaining = 0
@@ -347,6 +347,7 @@ class Plugin:
         await self.settings_commit()
 
         phase_label = "Phase 1 (5min)" if in_phase_1 else "Phase 2 (2min)"
+        phase = 1 if in_phase_1 else 2
         subtle = await self.settings_getSetting(settings_key_subtle_mode, False)
-        await decky.emit("simple_timer_event", f"Reminder ({current_hour:02d}:{current_minute:02d})", subtle)
+        await decky.emit("simple_timer_event", f"Reminder ({current_hour:02d}:{current_minute:02d})", subtle, phase)
         decky.logger.info(f"Interval triggered at {current_hour:02d}:{current_minute:02d} ({phase_label})")
